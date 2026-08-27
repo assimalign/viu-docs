@@ -1,0 +1,35 @@
+<Project Sdk="Assimalign.Cohesion.Sdk.Web/10.0.0-beta.1">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>ViuDocs.Server</RootNamespace>
+    <AssemblyName>ViuDocs.Server</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>preview</LangVersion>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">$(NETCoreSdkRuntimeIdentifier)</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <GenerateRequiresPreviewFeaturesAttribute>true</GenerateRequiresPreviewFeaturesAttribute>
+    <EnablePreviewFeatures>true</EnablePreviewFeatures>
+    <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
+    <ViuClientOutputPath>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\ViuDocs.Client\bin\$(Configuration)\$(TargetFramework)'))</ViuClientOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Assimalign.Viu.Cohesion.Web"
+                      Version="10.0.0-beta.1" />
+    <ProjectReference Include="..\ViuDocs.Client\ViuDocs.Client.csproj"
+                      ReferenceOutputAssembly="false"
+                      GlobalPropertiesToRemove="RuntimeIdentifier;SelfContained" />
+  </ItemGroup>
+
+  <!--
+    The project reference establishes build order. The runtime option carries the matching
+    configuration-specific client output path without relying on the process working directory.
+  -->
+  <ItemGroup>
+    <RuntimeHostConfigurationOption Include="ViuDocs.ClientOutputPath"
+                                    Value="$(ViuClientOutputPath)" />
+  </ItemGroup>
+</Project>

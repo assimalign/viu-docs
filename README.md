@@ -1,7 +1,7 @@
 # Viu Documentation
 
-Source for the Viu documentation site: plain markdown under `docs/` and a browser-rendered proof of
-concept under `app/`. The markdown remains the source of truth and carries no frontmatter.
+Source for the Viu documentation site: plain markdown under `docs/`, a Viu WebAssembly client, and a
+Cohesion Web host under `app/`. The markdown remains the source of truth and carries no frontmatter.
 
 > **Status:** Browser-rendered proof of concept. The Viu WebAssembly app fetches this repository's
 > markdown and renders it with `Assimalign.Cohesion.Content.Markdown`. Server-side rendering is a
@@ -18,9 +18,11 @@ hand-maintained navigation hub.
 
 - **Plain markdown source.** Every file under `docs/` is CommonMark-shaped markdown that remains
   directly readable on GitHub. The browser application consumes the same files as static web assets.
-- **A browser-rendered proof of concept.** `app/ViuDocs` is a packaged Viu WebAssembly consumer. It
-  fetches the current `.md` page, parses it with `Assimalign.Cohesion.Content.Markdown`, and renders
-  the resulting HTML in the browser.
+- **A browser-rendered proof of concept.** `app/ViuDocs.Client` is a packaged Viu WebAssembly
+  consumer. It fetches the current `.md` page, parses it with
+  `Assimalign.Cohesion.Content.Markdown`, and renders the resulting HTML in the browser.
+- **A real Cohesion host.** `app/ViuDocs.Server` uses the Cohesion App.Web shared framework and
+  `Assimalign.Viu.Cohesion.Web` to serve the client's manifest-described static assets and markdown.
 - **A deliberate SSR boundary.** The proof of concept validates content rendering and Cohesion-based
   development serving without turning each page into a server-rendered component yet.
 - **Written against the real codebase.** Every type, member, MSBuild property, and diagnostic ID named
@@ -31,27 +33,37 @@ of concept uses it at runtime in the browser; it does not pre-generate HTML. Kee
 and its section-level `index.md` pages intact leaves a direct path to mapping those pages to
 server-rendered components in a later phase.
 
-> **Local package prerequisites:** the app pins `Assimalign.Cohesion.Content.Markdown`
-> `10.0.0-beta.1`, packed from current Cohesion source (`dotnet pack` of the Markdown, Content, and
-> Content.Text projects into `_out/packages`). Older `10.0.x-preview.1` archives in that feed are
-> placeholder-era and must not be referenced. The Cohesion assemblies carry
-> `[assembly: RequiresPreviewFeatures]`, so the consuming project sets
+> **Local package prerequisites:** the client pins Viu `10.0.0-beta.11` and
+> `Assimalign.Cohesion.Content.Markdown` `10.0.0-beta.1`; the server pins Cohesion Web and the Viu
+> bridge at `10.0.0-beta.1`. The root `NuGet.config` currently restores those published-version
+> packages from the sibling repositories' local feeds. The Cohesion assemblies carry
+> `[assembly: RequiresPreviewFeatures]`, so both projects opt in with
 > `<EnablePreviewFeatures>true</EnablePreviewFeatures>` (CA2252).
 
 ## Local development
 
 The root `NuGet.config` restores from the local Viu, Viu Platforms, and Cohesion package feeds plus
-nuget.org, and keeps restored packages in the repository-local `.nuget/packages` cache. Build and run
-the proof of concept from its project directory:
+nuget.org, and keeps restored packages in the repository-local `.nuget/packages` cache. Build both
+projects from the repository root, then run the server project:
 
 ```powershell
-cd app/ViuDocs
+dotnet build ViuDocs.slnx
+cd app/ViuDocs.Server
 dotnet run
 ```
 
-The `Assimalign.Viu.Cohesion.DevServer` package switches the Viu SDK development loop from the default
-WasmAppHost to the Cohesion dev server. The application still performs markdown parsing and rendering
-in the browser; request-time server rendering is future work.
+The server's non-compiling project reference builds the client first. It then supplies the client's
+configuration-specific static-web-assets runtime and endpoints manifests to
+`AddViuApplication`, so `/`, `/_framework/**`, and `/docs/**` all come from the Viu build graph.
+The server builds self-contained for the current .NET SDK runtime identifier so the Cohesion
+App/App.Web runtime packs can run without a machine-wide Cohesion framework installation.
+
+In Visual Studio, open `ViuDocs.slnx`, select `ViuDocs.Server` as the startup project, and press F5
+with the `ViuDocs.Server` profile. That profile pins `http://127.0.0.1:5179`.
+
+Markdown parsing and rendering still happen in the browser. `ViuDocs.Server/Program.cs` marks the
+future `UseViuServerRenderer` composition point; request-time server rendering will be enabled after
+the application has request-scoped component composition.
 
 ## Repository layout
 
@@ -59,9 +71,10 @@ in the browser; request-time server rendering is future work.
 README.md                      this file — conventions and contributor guide
 NuGet.config                   local package feeds and repository-local restore cache
 ViuDocs.slnx                   solution entry point
-global.json                    .NET SDK selection and packaged Viu MSBuild SDK versions
+global.json                    .NET SDK selection and packaged Cohesion/Viu SDK versions
 app/
-  ViuDocs/                     Viu WebAssembly documentation browser proof of concept
+  ViuDocs.Client/              Viu WebAssembly documentation browser and linked markdown assets
+  ViuDocs.Server/              Cohesion Web host and future server-rendering composition root
 docs/
   index.md                     landing page and navigation hub
   guide/

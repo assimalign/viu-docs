@@ -1,4 +1,4 @@
 .nuget/
 **/bin/
 **/obj/
-app/ViuDocs/wwwroot/_content/
+app/ViuDocs.Client/wwwroot/_content/

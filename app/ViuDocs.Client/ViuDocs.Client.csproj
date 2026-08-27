@@ -1,4 +1,4 @@
-<Project Sdk="Assimalign.Viu.Sdk.Browser/10.0.0-beta.10">
+<Project Sdk="Assimalign.Viu.Sdk.Browser/10.0.0-beta.11">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
@@ -26,17 +26,15 @@
     <PackageReference Include="Assimalign.Cohesion.Content.Markdown"
                       Version="10.0.0-beta.1" />
     <PackageReference Include="Assimalign.Viu.Browser.Router"
-                      Version="10.0.0-beta.10" />
-    <PackageReference Include="Assimalign.Viu.Cohesion.DevServer"
-                      Version="10.0.0-alpha.3" />
+                      Version="10.0.0-beta.11" />
     <PackageReference Include="Assimalign.Viu.Router"
-                      Version="10.0.0-beta.10" />
+                      Version="10.0.0-beta.11" />
   </ItemGroup>
 
   <!--
     Linked Content keeps docs/ as the single source of truth. The Link metadata places each
     external file under wwwroot/docs for Microsoft static-web-asset discovery, while the copy
-    metadata also gives the Cohesion dev server a physical fallback beneath $(OutDir)wwwroot.
+    metadata also gives the Cohesion host a physical fallback beneath $(OutDir)wwwroot.
   -->
   <ItemGroup>
     <Content Include="..\..\docs\**\*.md"

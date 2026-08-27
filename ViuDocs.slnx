@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/app/">
-    <Project Path="app/ViuDocs/ViuDocs.csproj" />
+    <Project Path="app/ViuDocs.Server/ViuDocs.Server.csproj" />
+    <Project Path="app/ViuDocs.Client/ViuDocs.Client.csproj" />
   </Folder>
 </Solution>
