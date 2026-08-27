@@ -1,9 +1,11 @@
 # Viu Documentation
 
-Source for the Viu documentation site — plain markdown, no build step, no generator, no frontmatter.
+Source for the Viu documentation site: plain markdown under `docs/` and a browser-rendered proof of
+concept under `app/`. The markdown remains the source of truth and carries no frontmatter.
 
-> **Status:** Partial. The markdown in this repository is complete and hand-navigable, but nothing in
-> the Cohesion content pipeline can render markdown to HTML yet, so there is no site build today.
+> **Status:** Browser-rendered proof of concept. The Viu WebAssembly app fetches this repository's
+> markdown and renders it with `Assimalign.Cohesion.Content.Markdown`. Server-side rendering is a
+> later phase.
 
 Viu is a C#/.NET re-implementation of [Vue.js 3](https://vuejs.org/) that runs in the browser on
 WebAssembly. This repository documents it. The framework itself lives at
@@ -14,35 +16,52 @@ hand-maintained navigation hub.
 
 ## What this repository is
 
-- **Markdown source only.** Every file here is CommonMark-shaped plain markdown intended to be read
-  directly on GitHub today and rendered to a static site later.
-- **No build tooling.** There is no site generator, no template engine, no layout system, and no
-  navigation manifest — because the intended consumer does not have one yet either.
+- **Plain markdown source.** Every file under `docs/` is CommonMark-shaped markdown that remains
+  directly readable on GitHub. The browser application consumes the same files as static web assets.
+- **A browser-rendered proof of concept.** `app/ViuDocs` is a packaged Viu WebAssembly consumer. It
+  fetches the current `.md` page, parses it with `Assimalign.Cohesion.Content.Markdown`, and renders
+  the resulting HTML in the browser.
+- **A deliberate SSR boundary.** The proof of concept validates content rendering and Cohesion-based
+  development serving without turning each page into a server-rendered component yet.
 - **Written against the real codebase.** Every type, member, MSBuild property, and diagnostic ID named
   in these pages was verified against the source at `assimalign/viu`. Nothing is invented.
 
-The intended future consumer is `Assimalign.Cohesion.Content.Markdown`, which today is a registered but
-empty placeholder — `src/Class1.cs` holding an empty `Class1` in the stale namespace
-`Assimalign.Cohesion.Files.Markdown`, an empty `<Project Sdk="Microsoft.NET.Sdk">` element, a scaffolded
-test project whose only file is `UnitTest1.cs`, and a zero-byte README. There is no CommonMark parser,
-no markdown-to-HTML renderer, and no static-site generation anywhere in the Cohesion repository.
-The only statement of intent is one line in that repo's `libraries/Content/README.md` Standards table:
-"Markdown: CommonMark baseline." That is an aspiration, not a capability.
+`Assimalign.Cohesion.Content.Markdown` is now a fully implemented parser and HTML renderer. The proof
+of concept uses it at runtime in the browser; it does not pre-generate HTML. Keeping the original tree
+and its section-level `index.md` pages intact leaves a direct path to mapping those pages to
+server-rendered components in a later phase.
 
-When a renderer does arrive, the serving story is already implemented:
-`Assimalign.Cohesion.Web.StaticFiles` serves pre-built files from a mounted `IFileSystem`, 301-redirects
-a slash-less directory URL to its trailing-slash form, and then resolves `DefaultDocuments`
-(`index.html`, `index.htm`). That is why the major sections carry an `index.md` — directory-shaped URLs
-resolve naturally once those pages are rendered. Coverage is not yet complete: `docs/`, `docs/api/`,
-`docs/examples/`, `docs/guide/`, `docs/guide/essentials/`, and `docs/guide/components/` have one;
-`docs/guide/built-ins/`, `docs/guide/reusability/`, `docs/guide/scaling-up/`,
-`docs/guide/best-practices/`, and `docs/roadmap/` do not, so those directory URLs will 404 until an
-`index.md` is added. Adding the missing five is an open task.
+> **Local package prerequisites:** the app pins `Assimalign.Cohesion.Content.Markdown`
+> `10.0.0-beta.1`, packed from current Cohesion source (`dotnet pack` of the Markdown, Content, and
+> Content.Text projects into `_out/packages`). Older `10.0.x-preview.1` archives in that feed are
+> placeholder-era and must not be referenced. The Cohesion assemblies carry
+> `[assembly: RequiresPreviewFeatures]`, so the consuming project sets
+> `<EnablePreviewFeatures>true</EnablePreviewFeatures>` (CA2252).
+
+## Local development
+
+The root `NuGet.config` restores from the local Viu, Viu Platforms, and Cohesion package feeds plus
+nuget.org, and keeps restored packages in the repository-local `.nuget/packages` cache. Build and run
+the proof of concept from its project directory:
+
+```powershell
+cd app/ViuDocs
+dotnet run
+```
+
+The `Assimalign.Viu.Cohesion.DevServer` package switches the Viu SDK development loop from the default
+WasmAppHost to the Cohesion dev server. The application still performs markdown parsing and rendering
+in the browser; request-time server rendering is future work.
 
 ## Repository layout
 
 ```
 README.md                      this file — conventions and contributor guide
+NuGet.config                   local package feeds and repository-local restore cache
+ViuDocs.slnx                   solution entry point
+global.json                    .NET SDK selection and packaged Viu MSBuild SDK versions
+app/
+  ViuDocs/                     Viu WebAssembly documentation browser proof of concept
 docs/
   index.md                     landing page and navigation hub
   guide/
@@ -83,7 +102,8 @@ Refs, the `[Reactive]` source generator, and how Viu tracks state without a Java
 ```
 
 - **Line 1 is a single H1** — the page title. Exactly one H1 per file; every other heading is H2 or
-  deeper. A future generator derives the page title from this node and the URL from the file path.
+  deeper. A later server-rendering or static-generation phase can derive the page title from this node
+  and the URL from the file path.
 - **Line 3 is one plain-paragraph description** — a single sentence, no markup beyond inline code. This
   is the summary a search index or navigation card would use.
 - **Line 5 is an optional status blockquote** — the single machine-greppable honesty marker across the
@@ -100,13 +120,14 @@ The status callout uses exactly one of four sentences, optionally followed by cl
 
 ## Why there is no frontmatter
 
-This is a deliberate decision with a verified justification, not an oversight.
+This remains a deliberate source-format decision, not an oversight.
 
-- **Nothing can parse it.** `Assimalign.Cohesion.Content.Markdown` contains zero markdown code, so a
-  frontmatter block would be inert metadata with no consumer.
-- **It would render as garbage everywhere else.** In every other markdown viewer a leading `---` block
-  displays as a horizontal rule followed by stray text — on GitHub, which is where these pages are read
-  today.
+- **The current renderer does not need it.** `Assimalign.Cohesion.Content.Markdown` parses the markdown
+  body, while the proof of concept derives document locations from the existing file tree. There is no
+  frontmatter contract for the application to consume.
+- **The sources remain portable.** Keeping metadata in the visible opening nodes makes the title,
+  summary, and status readable on GitHub and in ordinary markdown viewers without viewer-specific
+  frontmatter handling.
 - **It matches observed practice.** Every markdown file in the Cohesion repository was checked and none
   begins with a `---` line; a repo-wide grep for "frontmatter" and "front matter" returns zero hits. The
   one `---` block in that repo lives in `.claude/rules/documentation.md` and is a Claude Code
@@ -115,12 +136,10 @@ This is a deliberate decision with a verified justification, not an oversight.
   no `title`, `description`, `date`, `tags`, `slug`, `order`, `weight`, `draft`, or `nav` field that
   could be documented. Any field list would be invention.
 
-**Migration note.** If `Assimalign.Cohesion.Content.Markdown` ever ships a CommonMark parser with a
-frontmatter extension, frontmatter can be added mechanically without rewriting a single line of body
-content: the H1 becomes `title`, the description paragraph becomes `description`, and the status
-callout becomes `status`. `Assimalign.Cohesion.Content.Yaml` — a complete, dependency-free YAML 1.2.2
-engine validated against the official yaml-test-suite — is the obvious parser for that block. The
-three-part opening exists precisely so that extraction is a trivial CommonMark walk.
+**Migration note.** If a later SSR or static-generation contract adopts frontmatter, it can be added
+mechanically without rewriting a single line of body content: the H1 becomes `title`, the description
+paragraph becomes `description`, and the status callout becomes `status`. The three-part opening keeps
+that extraction a straightforward markdown-tree walk.
 
 ## File naming and navigation
 
@@ -132,9 +151,9 @@ three-part opening exists precisely so that extraction is a trivial CommonMark w
   inside a source tree; these files are the address bar of a public site. The repo-root `README.md`
   stays UPPERCASE, in keeping with the rule.
 - **Navigation is hand-maintained relative links.** There is no `toc.yml`, `SUMMARY.md`, `mkdocs.yml`,
-  `docfx.json`, or `sidebars.js`, because no such format exists in the intended consumer — Cohesion
-  ships no navigation manifest of any kind and expresses navigation purely as relative markdown links.
-  Adding a manifest here would invent a format nothing reads.
+  `docfx.json`, or `sidebars.js`. The browser proof of concept uses the existing documentation tree and
+  translates intra-document `.md` links into application routes, so a second navigation metadata
+  format is unnecessary.
 - **Link only to pages that exist.** Every relative link must resolve within this repository. When you
   add a page, add its link to `docs/index.md` and to its section's `index.md` in the same change.
 
@@ -241,16 +260,13 @@ point is to frame how the Viu SDK is meant to be used. Aspiration is fine. Misre
 The rule is simple: **anything not fully implemented must be labelled inline, at the point of use, and
 must link to [`docs/roadmap/status.md`](docs/roadmap/status.md).**
 
-Absent entirely — no folder, no project, and no source file in the framework repository. Each is named
-in the roadmap table in `docs/PLAN.md`, and `Assimalign.Viu.Routing` appears as a `using` line in the
-`.designing/SampleApp/App.viu` sketch and in a source-generator test fixture string; those are the only
-references, and none of them is an implementation. Never write a page implying any of these work:
+The Phase 3 package baseline changes two earlier roadmap assumptions. `Assimalign.Viu.Router` and
+`Assimalign.Viu.Browser.Router` are consumable packages and this proof of concept uses their official
+hash-history implementation. `Assimalign.Viu.ServerRenderer` is also present; turning markdown pages
+into request-time components remains later integration work, not an absent renderer. Continue to label
+the surfaces that are actually absent:
 
-- **`Assimalign.Viu.Router`** — the `vue-router` counterpart. Roadmap only.
 - **`Assimalign.Viu.Store`** — the Pinia counterpart. Roadmap only.
-- **`Assimalign.Viu.ServerRenderer`** — SSR, hydration, and static prerendering. Roadmap only. Seams
-  such as `PatchFlags.NeedHydration`, `DomKnowledge.IsSsrSafeAttributeName`, and
-  `Lifecycle.OnServerPrefetch` exist but nothing consumes them; they are not SSR support.
 - **`Assimalign.Viu.DevTools`** — the browser devtools counterpart. Roadmap only.
 
 Present as inert markers. `RenderHelpers._Teleport`, `._KeepAlive`, and `._Suspense` are
@@ -260,10 +276,9 @@ documents them honestly and gives the workarounds available today.
 
 Two more traps worth knowing before you write a page:
 
-- **There is exactly one working demo, and it is a stopwatch.** The framework's `PLAN.md` names TodoMVC
-  as its exit demo; TodoMVC does not exist in any form. The stopwatch is written entirely with
-  hand-written `VirtualNodeFactory` calls, and no shipping example compiles a `.viu` file. See
-  [`docs/examples/stopwatch.md`](docs/examples/stopwatch.md).
+- **Example coverage changes independently of these pages.** The packaged SDK showcase now compiles
+  `.viu` components, while this repository still documents the stopwatch as its focused example. Keep
+  claims about shipping examples tied to a current package-consumer check.
 - **`PLAN.md` is stale and will mislead you.** Its "Where the POC stands" section claims reactivity, the
   component model, the scheduler, and minimal-move keyed reconciliation are absent. All four are
   implemented. It also names types — `VirtualDomRenderer<TNode>`, `IVirtualDomAdapter<TNode>`, `VElement`
@@ -284,5 +299,3 @@ Before opening a pull request against this repository:
 6. **Vue counterparts named and linked** wherever one exists.
 7. **New pages linked** from `docs/index.md` and from their section's `index.md`, in the same change.
 8. **Prose hard-wrapped** at roughly 100 characters.
-</content>
-</invoke>

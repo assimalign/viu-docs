@@ -1,0 +1,76 @@
+<template>
+    <div class="documentation-shell">
+        <aside class="documentation-sidebar">
+            <RouterLink to="/" class="brand-link">
+                <span class="brand-mark" aria-hidden="true">V</span>
+                <span>
+                    <strong>Viu</strong>
+                    <small>Documentation POC</small>
+                </span>
+            </RouterLink>
+
+            <nav class="documentation-navigation" aria-label="Documentation pages">
+                <section v-for="section in Sections" :key="section.Title" class="navigation-section">
+                    <h2>{{ section.Title }}</h2>
+                    <div v-for="page in section.Pages" :key="page.Route">
+                        <RouterLink :to="page.Route" :class="NavigationClass(page.Route)">
+                            {{ page.Title }}
+                        </RouterLink>
+                    </div>
+                </section>
+            </nav>
+
+            <p class="sidebar-note">
+                Browser-rendered from the repository's own Markdown through Cohesion.
+            </p>
+        </aside>
+
+        <div class="documentation-workspace">
+            <header class="documentation-header">
+                <div>
+                    <span class="page-kicker">{{ CurrentAssetPath }}</span>
+                    <h1>{{ PageTitle }}</h1>
+                </div>
+                <a href="https://github.com/assimalign/viu" target="_blank" rel="noreferrer">
+                    Framework source ↗
+                </a>
+            </header>
+
+            <main class="documentation-main">
+                <RouterView :depth="1" />
+            </main>
+        </div>
+    </div>
+</template>
+
+@script {
+    using System;
+    using System.Collections.Generic;
+
+    using ViuRouter = Assimalign.Viu.Router.Router;
+
+    private ViuRouter Router { get; set; } = null!;
+
+    public IReadOnlyList<DocumentationSection> Sections =>
+        DocumentationCatalog.Sections;
+
+    public string CurrentPath => Router.CurrentRoute.Value.Path;
+
+    public string PageTitle => CurrentPage?.Title ?? "Page not found";
+
+    public string CurrentAssetPath => CurrentPage?.AssetPath ?? CurrentPath;
+
+    private DocumentationPage? CurrentPage =>
+        DocumentationCatalog.FindByRoute(CurrentPath);
+
+    partial void OnSetup()
+    {
+        Router = (ViuRouter?)Context!.Services?.GetService(typeof(ViuRouter))
+            ?? throw new InvalidOperationException("The Viu router service is unavailable.");
+    }
+
+    private string NavigationClass(string route) =>
+        string.Equals(CurrentPath, route, StringComparison.Ordinal)
+            ? "navigation-link navigation-link--active"
+            : "navigation-link";
+}

@@ -1,0 +1,53 @@
+<Project Sdk="Assimalign.Viu.Sdk.Browser/10.0.0-beta.10">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>ViuDocs</RootNamespace>
+    <AssemblyName>ViuDocs</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>preview</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>full</TrimMode>
+    <ViuRunAotCompilation Condition="'$(ViuRunAotCompilation)' == ''">false</ViuRunAotCompilation>
+    <!-- Workaround for assimalign/viu#280 in pristine SDK consumers. -->
+    <GenerateRequiresPreviewFeaturesAttribute>true</GenerateRequiresPreviewFeaturesAttribute>
+    <!-- The Assimalign.Cohesion.* assemblies are built with EnablePreviewFeatures=true and carry
+         [assembly: RequiresPreviewFeatures], so consumers must opt in (CA2252). -->
+    <EnablePreviewFeatures>true</EnablePreviewFeatures>
+    <!-- Some .NET 10 SDK installations omit their optional PrunePackageData directory. -->
+    <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
+    <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Assimalign.Cohesion.Content.Markdown"
+                      Version="10.0.0-beta.1" />
+    <PackageReference Include="Assimalign.Viu.Browser.Router"
+                      Version="10.0.0-beta.10" />
+    <PackageReference Include="Assimalign.Viu.Cohesion.DevServer"
+                      Version="10.0.0-alpha.2" />
+    <PackageReference Include="Assimalign.Viu.Router"
+                      Version="10.0.0-beta.10" />
+  </ItemGroup>
+
+  <!--
+    Linked Content keeps docs/ as the single source of truth. The Link metadata places each
+    external file under wwwroot/docs for Microsoft static-web-asset discovery, while the copy
+    metadata also gives the Cohesion dev server a physical fallback beneath $(OutDir)wwwroot.
+  -->
+  <ItemGroup>
+    <Content Include="..\..\docs\**\*.md"
+             Link="wwwroot\docs\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <StaticWebAssetFingerprintPattern Include="JS"
+                                      Pattern="*.js"
+                                      Expression="#[.{fingerprint}]!" />
+  </ItemGroup>
+</Project>

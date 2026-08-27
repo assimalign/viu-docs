@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "ViuDocs": {
+      "commandName": "Project",
+      "applicationUrl": "http://127.0.0.1:5179",
+      "launchBrowser": true
+    }
+  }
+}
