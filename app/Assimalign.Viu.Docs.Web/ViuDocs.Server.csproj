@@ -13,13 +13,13 @@
     <GenerateRequiresPreviewFeaturesAttribute>true</GenerateRequiresPreviewFeaturesAttribute>
     <EnablePreviewFeatures>true</EnablePreviewFeatures>
     <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
-    <ViuClientOutputPath>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\ViuDocs.Client\bin\$(Configuration)\$(TargetFramework)'))</ViuClientOutputPath>
+    <ViuClientOutputPath>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\Assimalign.Viu.Docs.App\bin\$(Configuration)\$(TargetFramework)'))</ViuClientOutputPath>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Assimalign.Viu.Cohesion.Web"
-                      Version="10.0.0-beta.1" />
-    <ProjectReference Include="..\ViuDocs.Client\ViuDocs.Client.csproj"
+    <PackageReference Include="Assimalign.Cohesion.Viu.Server"
+                      Version="10.0.0-beta.2" />
+    <ProjectReference Include="..\Assimalign.Viu.Docs.App\ViuDocs.Client.csproj"
                       ReferenceOutputAssembly="false"
                       GlobalPropertiesToRemove="RuntimeIdentifier;SelfContained" />
   </ItemGroup>

@@ -2,3 +2,6 @@
 **/bin/
 **/obj/
 app/ViuDocs.Client/wwwroot/_content/
+
+# Visual Studio working directory
+.vs/

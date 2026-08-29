@@ -18,11 +18,13 @@ hand-maintained navigation hub.
 
 - **Plain markdown source.** Every file under `docs/` is CommonMark-shaped markdown that remains
   directly readable on GitHub. The browser application consumes the same files as static web assets.
-- **A browser-rendered proof of concept.** `app/ViuDocs.Client` is a packaged Viu WebAssembly
-  consumer. It fetches the current `.md` page, parses it with
+- **A browser-rendered proof of concept.** `app/Assimalign.Viu.Docs.App` is a packaged Viu
+  WebAssembly consumer composed through `ViuApplication.CreateBuilder()`. It fetches the current
+  `.md` page, parses it with
   `Assimalign.Cohesion.Content.Markdown`, and renders the resulting HTML in the browser.
-- **A real Cohesion host.** `app/ViuDocs.Server` uses the Cohesion App.Web shared framework and
-  `Assimalign.Viu.Cohesion.Web` to serve the client's manifest-described static assets and markdown.
+- **A real Cohesion host.** `app/Assimalign.Viu.Docs.Web` uses the Cohesion App.Web shared framework
+  and `Assimalign.Cohesion.Viu.Server` to serve the client's manifest-described static assets and
+  markdown.
 - **A deliberate SSR boundary.** The proof of concept validates content rendering and Cohesion-based
   development serving without turning each page into a server-rendered component yet.
 - **Written against the real codebase.** Every type, member, MSBuild property, and diagnostic ID named
@@ -33,22 +35,25 @@ of concept uses it at runtime in the browser; it does not pre-generate HTML. Kee
 and its section-level `index.md` pages intact leaves a direct path to mapping those pages to
 server-rendered components in a later phase.
 
-> **Local package prerequisites:** the client pins Viu `10.0.0-beta.11` and
-> `Assimalign.Cohesion.Content.Markdown` `10.0.0-beta.1`; the server pins Cohesion Web and the Viu
-> bridge at `10.0.0-beta.1`. The root `NuGet.config` currently restores those published-version
-> packages from the sibling repositories' local feeds. The Cohesion assemblies carry
+> **Local package prerequisites:** the client pins Viu `10.0.0-beta.11`,
+> `Assimalign.Cohesion.Content.Markdown` `10.0.0-beta.1`, and the
+> `Assimalign.Cohesion.Viu.Hosting` / `.Hosting.Browser` family at `10.0.0-beta.2`; the server
+> consumes `Assimalign.Cohesion.Viu.Server` `10.0.0-beta.2`. These packages use the Cohesion-first
+> family name that replaced `Assimalign.Viu.Cohesion.*`. The root `NuGet.config` currently restores
+> them from the sibling repositories' local feeds. The Cohesion assemblies carry
 > `[assembly: RequiresPreviewFeatures]`, so both projects opt in with
 > `<EnablePreviewFeatures>true</EnablePreviewFeatures>` (CA2252).
 
 ## Local development
 
-The root `NuGet.config` restores from the local Viu, Viu Platforms, and Cohesion package feeds plus
-nuget.org, and keeps restored packages in the repository-local `.nuget/packages` cache. Build both
-projects from the repository root, then run the server project:
+The root `NuGet.config` restores from the local Viu, Viu Platforms, and Cohesion package feeds,
+uses the authenticated Assimalign GitHub Packages source for beta.1 Cohesion dependencies absent
+from the sibling feed, and keeps restored packages in the repository-local `.nuget/packages` cache.
+Build both projects from the repository root, then run the server project:
 
 ```powershell
 dotnet build ViuDocs.slnx
-cd app/ViuDocs.Server
+cd app/Assimalign.Viu.Docs.Web
 dotnet run
 ```
 
@@ -61,9 +66,12 @@ App/App.Web runtime packs can run without a machine-wide Cohesion framework inst
 In Visual Studio, open `ViuDocs.slnx`, select `ViuDocs.Server` as the startup project, and press F5
 with the `ViuDocs.Server` profile. That profile pins `http://127.0.0.1:5179`.
 
-Markdown parsing and rendering still happen in the browser. `ViuDocs.Server/Program.cs` marks the
-future `UseViuServerRenderer` composition point; request-time server rendering will be enabled after
-the application has request-scoped component composition.
+The client uses `ViuApplication.CreateBuilder()` with `ConfigureBrowser()` and registers its router
+and documentation services through the hosting builder. Markdown parsing and rendering still happen
+in the browser. `Assimalign.Viu.Docs.Web/Program.cs` marks the future hosting-model seam:
+`AddViuServerApplication` before the Web application is built, followed by
+`UseViuServerRenderer(ViuApplication, ...)` in the pipeline. Request-time server rendering remains a
+later phase.
 
 ## Repository layout
 
@@ -73,8 +81,8 @@ NuGet.config                   local package feeds and repository-local restore 
 ViuDocs.slnx                   solution entry point
 global.json                    .NET SDK selection and packaged Cohesion/Viu SDK versions
 app/
-  ViuDocs.Client/              Viu WebAssembly documentation browser and linked markdown assets
-  ViuDocs.Server/              Cohesion Web host and future server-rendering composition root
+  Assimalign.Viu.Docs.App/     Viu WebAssembly documentation browser and linked markdown assets
+  Assimalign.Viu.Docs.Web/     Cohesion Web host and future server-rendering composition root
 docs/
   index.md                     landing page and navigation hub
   guide/

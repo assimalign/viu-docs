@@ -5,9 +5,9 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Assimalign.Cohesion.DependencyInjection;
+using Assimalign.Cohesion.Viu.Server;
 using Assimalign.Cohesion.Web;
 using Assimalign.Cohesion.Web.Hosting;
-using Assimalign.Viu.Cohesion.Web;
 
 using ViuDocs.Server;
 
@@ -42,9 +42,9 @@ builder.Server.UseServer(listener =>
 await using WebApplication application = builder.Build();
 application.UseViuApplication();
 
-// Future SSR seam: set EnableSpaFallback to false above, then register request-scoped
-// component composition here so static assets continue before server-rendered documents.
-// application.UseViuServerRenderer(serverRenderAdaptor, rootComponentFactory, shouldRender);
+// Future SSR seam: set EnableSpaFallback to false above, register the built server-side
+// ViuApplication before Build with builder.AddViuServerApplication(viuApplication), then compose:
+// application.UseViuServerRenderer(viuApplication, serverRenders, shouldRender);
 
 using ShutdownSignals shutdown = new();
 IWebApplicationServer server =

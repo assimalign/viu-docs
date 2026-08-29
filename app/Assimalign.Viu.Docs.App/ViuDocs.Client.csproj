@@ -25,6 +25,10 @@
   <ItemGroup>
     <PackageReference Include="Assimalign.Cohesion.Content.Markdown"
                       Version="10.0.0-beta.1" />
+    <PackageReference Include="Assimalign.Cohesion.Viu.Hosting"
+                      Version="10.0.0-beta.2" />
+    <PackageReference Include="Assimalign.Cohesion.Viu.Hosting.Browser"
+                      Version="10.0.0-beta.2" />
     <PackageReference Include="Assimalign.Viu.Browser.Router"
                       Version="10.0.0-beta.11" />
     <PackageReference Include="Assimalign.Viu.Router"
