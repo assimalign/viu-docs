@@ -5,15 +5,15 @@
                 <span class="brand-mark" aria-hidden="true">V</span>
                 <span>
                     <strong>Viu</strong>
-                    <small>Documentation POC</small>
+                    <small>Documentation</small>
                 </span>
             </RouterLink>
 
             <nav class="documentation-navigation" aria-label="Documentation pages">
-                <section v-for="section in Sections" :key="section.Title" class="navigation-section">
+                <section v-for="section in GetSections()" :key="section.SourceRelativePath" class="navigation-section">
                     <h2>{{ section.Title }}</h2>
-                    <div v-for="page in section.Pages" :key="page.Route">
-                        <RouterLink :to="page.Route" :class="NavigationClass(page.Route)">
+                    <div v-for="page in section.Pages" :key="page.RoutePath">
+                        <RouterLink :to="page.RoutePath" :class="NavigationClass(page.RoutePath)">
                             {{ page.Title }}
                         </RouterLink>
                     </div>
@@ -37,7 +37,7 @@
             </header>
 
             <main class="documentation-main">
-                <RouterView :depth="1" />
+                <RouterView v-bind="RouteOutletArguments" />
             </main>
         </div>
     </div>
@@ -47,26 +47,65 @@
     using System;
     using System.Collections.Generic;
 
+    using Assimalign.Cohesion.Viu.Markdown;
+
     using ViuRouter = Assimalign.Viu.Router.Router;
 
     private ViuRouter Router { get; set; } = null!;
 
-    public IReadOnlyList<DocumentationSection> Sections =>
-        DocumentationCatalog.Sections;
+    private MarkdownContentCatalog Catalog { get; set; } = null!;
 
-    public string CurrentPath => Router.CurrentRoute.Value.Path;
+    private IReadOnlyList<MarkdownSection> Sections { get; set; } = [];
+
+    // A typed method keeps beta.11 template loop emission from unwrapping a mutable property as object.
+    public IReadOnlyList<MarkdownSection> GetSections() => Sections;
+
+    // RouterView beta.11 declares depth in its runtime contract, without parameter metadata.
+    public IReadOnlyDictionary<string, object?> RouteOutletArguments { get; } =
+        new Dictionary<string, object?>(StringComparer.Ordinal) { ["depth"] = 1 };
+
+    public string CurrentPath
+    {
+        get
+        {
+            string path = Router.CurrentRoute.Value.Path;
+            int suffixIndex = path.IndexOfAny(['?', '#']);
+            return suffixIndex < 0 ? path : path[..suffixIndex];
+        }
+    }
 
     public string PageTitle => CurrentPage?.Title ?? "Page not found";
 
     public string CurrentAssetPath => CurrentPage?.AssetPath ?? CurrentPath;
 
-    private DocumentationPage? CurrentPage =>
-        DocumentationCatalog.FindByRoute(CurrentPath);
+    private MarkdownPage? CurrentPage =>
+        Catalog.TryGetPageByRoute(CurrentPath, out MarkdownPage? page) ? page : null;
 
     partial void OnSetup()
     {
         Router = (ViuRouter?)Context!.Services?.GetService(typeof(ViuRouter))
             ?? throw new InvalidOperationException("The Viu router service is unavailable.");
+        Catalog = (MarkdownContentCatalog?)Context.Services?.GetService(typeof(MarkdownContentCatalog))
+            ?? throw new InvalidOperationException("The Markdown content catalog is unavailable.");
+
+        List<MarkdownSection> sections = [];
+        AddSections(Catalog.Sections, sections);
+        Sections = sections.AsReadOnly();
+    }
+
+    private static void AddSections(
+        IReadOnlyList<MarkdownSection> source,
+        List<MarkdownSection> destination)
+    {
+        foreach (MarkdownSection section in source)
+        {
+            if (section.Pages.Count > 0)
+            {
+                destination.Add(section);
+            }
+
+            AddSections(section.Sections, destination);
+        }
     }
 
     private string NavigationClass(string route) =>

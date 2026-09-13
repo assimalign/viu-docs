@@ -3,9 +3,9 @@
 Source for the Viu documentation site: plain markdown under `docs/`, a Viu WebAssembly client, and a
 Cohesion Web host under `app/`. The markdown remains the source of truth and carries no frontmatter.
 
-> **Status:** Browser-rendered proof of concept. The Viu WebAssembly app fetches this repository's
-> markdown and renders it with `Assimalign.Cohesion.Content.Markdown`. Server-side rendering is a
-> later phase.
+> **Status:** Browser-rendered documentation application. `Assimalign.Cohesion.Viu.Markdown`
+> generates its content catalog at build time and renders Markdown as Viu components in the browser.
+> Request-time server rendering is a later phase.
 
 Viu is a C#/.NET re-implementation of [Vue.js 3](https://vuejs.org/) that runs in the browser on
 WebAssembly. This repository documents it. The framework itself lives at
@@ -18,27 +18,30 @@ hand-maintained navigation hub.
 
 - **Plain markdown source.** Every file under `docs/` is CommonMark-shaped markdown that remains
   directly readable on GitHub. The browser application consumes the same files as static web assets.
-- **A browser-rendered proof of concept.** `app/Assimalign.Viu.Docs.App` is a packaged Viu
-  WebAssembly consumer composed through `ViuApplication.CreateBuilder()`. It fetches the current
-  `.md` page, parses it with
-  `Assimalign.Cohesion.Content.Markdown`, and renders the resulting HTML in the browser.
+- **A package-based documentation application.** `app/Assimalign.Viu.Docs.App` is a Viu WebAssembly
+  consumer composed through `ViuApplication.CreateBuilder().AddMarkdownContent(...)`. The Markdown
+  package derives metadata and navigation from the files during compilation. Its page component
+  fetches each `.md` asset and renders Viu nodes, including `RouterLink` components for internal links.
 - **A real Cohesion host.** `app/Assimalign.Viu.Docs.Web` uses the Cohesion App.Web shared framework
   and `Assimalign.Cohesion.Viu.Server` to serve the client's manifest-described static assets and
   markdown.
-- **A deliberate SSR boundary.** The proof of concept validates content rendering and Cohesion-based
-  development serving without turning each page into a server-rendered component yet.
+- **A deliberate SSR boundary.** The Web host serves the browser application and its content assets.
+  Per-page server composition remains a later phase; the Markdown package already supplies the
+  file-system content source, node renderer, and `OnServerPrefetch` lifecycle seam for that work.
 - **Written against the real codebase.** Every type, member, MSBuild property, and diagnostic ID named
   in these pages was verified against the source at `assimalign/viu`. Nothing is invented.
 
-`Assimalign.Cohesion.Content.Markdown` is now a fully implemented parser and HTML renderer. The proof
-of concept uses it at runtime in the browser; it does not pre-generate HTML. Keeping the original tree
-and its section-level `index.md` pages intact leaves a direct path to mapping those pages to
-server-rendered components in a later phase.
+`Assimalign.Cohesion.Viu.Markdown` composes the published `Assimalign.Cohesion.Content.Markdown`
+parser. The incremental source generator produces `GeneratedMarkdownContent.Catalog`, containing
+all 45 pages, and `MarkdownRoutes.Create` turns that catalog into exact routes beneath `AppShell`.
+The application has no hand-written page catalog, link rewriter, heading identifier implementation,
+fetch service, or Markdown view template. Markdown parsing still happens at runtime; the build
+generates metadata, not HTML.
 
 > **Local package prerequisites:** the client pins Viu `10.0.0-beta.11`,
-> `Assimalign.Cohesion.Content.Markdown` `10.0.0-beta.1`, and the
-> `Assimalign.Cohesion.Viu.Hosting` / `.Hosting.Browser` family at `10.0.0-beta.2`; the server
-> consumes `Assimalign.Cohesion.Viu.Server` `10.0.0-beta.2`. These packages use the Cohesion-first
+> `Assimalign.Cohesion.Viu.Markdown` / `.Hosting` / `.Hosting.Browser` `10.0.0-beta.3`; the server
+> consumes `Assimalign.Cohesion.Viu.Server` `10.0.0-beta.3`. The Markdown package consumes
+> `Assimalign.Cohesion.Content.Markdown` `10.0.0-beta.1`. These packages use the Cohesion-first
 > family name that replaced `Assimalign.Viu.Cohesion.*`. The root `NuGet.config` currently restores
 > them from the sibling repositories' local feeds. The Cohesion assemblies carry
 > `[assembly: RequiresPreviewFeatures]`, so both projects opt in with
@@ -49,12 +52,13 @@ server-rendered components in a later phase.
 The root `NuGet.config` restores from the local Viu, Viu Platforms, and Cohesion package feeds,
 uses the authenticated Assimalign GitHub Packages source for beta.1 Cohesion dependencies absent
 from the sibling feed, and keeps restored packages in the repository-local `.nuget/packages` cache.
-Build both projects from the repository root, then run the server project:
+After changing the platform packages, pack their local feed before building both documentation
+projects from this repository root:
 
 ```powershell
+pwsh ../viu-platforms/scripts/Install-Local.ps1 -Configuration Release
 dotnet build ViuDocs.slnx
-cd app/Assimalign.Viu.Docs.Web
-dotnet run
+dotnet run --project app/Assimalign.Viu.Docs.Web
 ```
 
 The server's non-compiling project reference builds the client first. It then supplies the client's
@@ -66,9 +70,29 @@ App/App.Web runtime packs can run without a machine-wide Cohesion framework inst
 In Visual Studio, open `ViuDocs.slnx`, select `ViuDocs.Server` as the startup project, and press F5
 with the `ViuDocs.Server` profile. That profile pins `http://127.0.0.1:5179`.
 
-The client uses `ViuApplication.CreateBuilder()` with `ConfigureBrowser()` and registers its router
-and documentation services through the hosting builder. Markdown parsing and rendering still happen
-in the browser. `Assimalign.Viu.Docs.Web/Program.cs` marks the future hosting-model seam:
+The client sets `ViuMarkdownContentRoot` to `..\..\docs` and `ViuMarkdownContentPrefix` to `docs/`.
+The package's default recursive glob supplies these files to the incremental generator; the linked
+`Content` items in `ViuDocs.Client.csproj` also expose the same files as static web assets. Titles,
+descriptions, status text, and section order therefore update with ordinary Markdown edits.
+
+The client uses clean web history so native `#fragment` anchors keep the current page route. The
+server's SPA fallback handles direct route requests, and `<base href="/">` keeps assets rooted at
+the site. A render-option hook qualifies fragment-only anchors with the page route so the root base
+element does not send them to the landing page. They remain ordinary native anchors. The bootstrap
+converts old `#/guide/...` bookmarks to their equivalent clean URLs once.
+Internal Markdown links render as `RouterLink` components; there is no anchor-click interceptor.
+The router's optional `ScrollBehavior` is configured to wait for a heading in the destination page's
+article while Markdown downloads, then apply the router's `ScrollTarget`. `main.js` retains only this
+bounded heading-availability helper, the bookmark conversion, and the .NET bootstrap. It does not
+navigate on link clicks.
+
+`AppShell` uses a typed navigation method because the Viu beta.11 template generator unwraps a mutable
+collection property as `object` in `v-for`. It forwards depth one through a `v-bind` dictionary because
+beta.11 `RouterView` declares `depth` in its runtime contract but omits its parameter attribute. These
+small consumer workarounds preserve the catalog model and the router's existing runtime behavior.
+
+Markdown parsing and rendering still happen in the browser.
+`Assimalign.Viu.Docs.Web/Program.cs` marks the future hosting-model seam:
 `AddViuServerApplication` before the Web application is built, followed by
 `UseViuServerRenderer(ViuApplication, ...)` in the pipeline. Request-time server rendering remains a
 later phase.
@@ -82,6 +106,10 @@ ViuDocs.slnx                   solution entry point
 global.json                    .NET SDK selection and packaged Cohesion/Viu SDK versions
 app/
   Assimalign.Viu.Docs.App/     Viu WebAssembly documentation browser and linked markdown assets
+    Components/AppShell.viu   application layout and navigation over the generated catalog
+    FragmentScrolling.cs     browser heading-availability interop for router scrolling
+    Program.cs               Markdown package, router, and hosting composition
+    wwwroot/                 bootstrap, fragment wait helper, site.css, and index.html
   Assimalign.Viu.Docs.Web/     Cohesion Web host and future server-rendering composition root
 docs/
   index.md                     landing page and navigation hub
@@ -122,9 +150,8 @@ Refs, the `[Reactive]` source generator, and how Viu tracks state without a Java
 > **Status:** Implemented. See [Project status](../../roadmap/status.md) for area-by-area coverage.
 ```
 
-- **Line 1 is a single H1** — the page title. Exactly one H1 per file; every other heading is H2 or
-  deeper. A later server-rendering or static-generation phase can derive the page title from this node
-  and the URL from the file path.
+- **Line 1 is a single H1** — the package extracts the page title here. Exactly one H1 per file;
+  every other heading is H2 or deeper. The file path determines the route.
 - **Line 3 is one plain-paragraph description** — a single sentence, no markup beyond inline code. This
   is the summary a search index or navigation card would use.
 - **Line 5 is an optional status blockquote** — the single machine-greppable honesty marker across the
@@ -143,9 +170,10 @@ The status callout uses exactly one of four sentences, optionally followed by cl
 
 This remains a deliberate source-format decision, not an oversight.
 
-- **The current renderer does not need it.** `Assimalign.Cohesion.Content.Markdown` parses the markdown
-  body, while the proof of concept derives document locations from the existing file tree. There is no
-  frontmatter contract for the application to consume.
+- **The package extracts visible metadata.** `Assimalign.Cohesion.Viu.Markdown` uses deterministic,
+  line-based extraction at build time: the first-line H1, opening description paragraph, and optional
+  status blockquote become catalog metadata. Relative `.md` links in each folder's `index.md` define
+  navigation order; unlinked pages still appear in ordinal file order. No frontmatter is parsed.
 - **The sources remain portable.** Keeping metadata in the visible opening nodes makes the title,
   summary, and status readable on GitHub and in ordinary markdown viewers without viewer-specific
   frontmatter handling.
@@ -157,10 +185,9 @@ This remains a deliberate source-format decision, not an oversight.
   no `title`, `description`, `date`, `tags`, `slug`, `order`, `weight`, `draft`, or `nav` field that
   could be documented. Any field list would be invention.
 
-**Migration note.** If a later SSR or static-generation contract adopts frontmatter, it can be added
-mechanically without rewriting a single line of body content: the H1 becomes `title`, the description
-paragraph becomes `description`, and the status callout becomes `status`. The three-part opening keeps
-that extraction a straightforward markdown-tree walk.
+The same catalog and content-source contracts support future server rendering without changing the
+page format. The package's runtime catalog builder is also available for hosts without source
+generation.
 
 ## File naming and navigation
 
@@ -172,9 +199,10 @@ that extraction a straightforward markdown-tree walk.
   inside a source tree; these files are the address bar of a public site. The repo-root `README.md`
   stays UPPERCASE, in keeping with the rule.
 - **Navigation is hand-maintained relative links.** There is no `toc.yml`, `SUMMARY.md`, `mkdocs.yml`,
-  `docfx.json`, or `sidebars.js`. The browser proof of concept uses the existing documentation tree and
-  translates intra-document `.md` links into application routes, so a second navigation metadata
-  format is unnecessary.
+  `docfx.json`, or `sidebars.js`. The package reads section ordering from the existing `index.md`
+  links and renders intra-document `.md` links through the Viu router, so a second navigation metadata
+  format is unnecessary. Folder sections and their titles now follow the source tree, replacing the
+  proof of concept's manually grouped navigation.
 - **Link only to pages that exist.** Every relative link must resolve within this repository. When you
   add a page, add its link to `docs/index.md` and to its section's `index.md` in the same change.
 
@@ -282,8 +310,8 @@ The rule is simple: **anything not fully implemented must be labelled inline, at
 must link to [`docs/roadmap/status.md`](docs/roadmap/status.md).**
 
 The Phase 3 package baseline changes two earlier roadmap assumptions. `Assimalign.Viu.Router` and
-`Assimalign.Viu.Browser.Router` are consumable packages and this proof of concept uses their official
-hash-history implementation. `Assimalign.Viu.ServerRenderer` is also present; turning markdown pages
+`Assimalign.Viu.Browser.Router` are consumable packages and this application uses their official
+web-history implementation. `Assimalign.Viu.ServerRenderer` is also present; turning markdown pages
 into request-time components remains later integration work, not an absent renderer. Continue to label
 the surfaces that are actually absent:
 

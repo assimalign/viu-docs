@@ -20,15 +20,18 @@
     <!-- Some .NET 10 SDK installations omit their optional PrunePackageData directory. -->
     <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
     <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
+    <ViuMarkdownContentRoot>..\..\docs</ViuMarkdownContentRoot>
+    <ViuMarkdownContentPrefix>docs/</ViuMarkdownContentPrefix>
+    <ViuMarkdownGeneratedNamespace>ViuDocs</ViuMarkdownGeneratedNamespace>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Assimalign.Cohesion.Content.Markdown"
-                      Version="10.0.0-beta.1" />
+    <PackageReference Include="Assimalign.Cohesion.Viu.Markdown"
+                      Version="10.0.0-beta.3" />
     <PackageReference Include="Assimalign.Cohesion.Viu.Hosting"
-                      Version="10.0.0-beta.2" />
+                      Version="10.0.0-beta.3" />
     <PackageReference Include="Assimalign.Cohesion.Viu.Hosting.Browser"
-                      Version="10.0.0-beta.2" />
+                      Version="10.0.0-beta.3" />
     <PackageReference Include="Assimalign.Viu.Browser.Router"
                       Version="10.0.0-beta.11" />
     <PackageReference Include="Assimalign.Viu.Router"
