@@ -205,8 +205,11 @@ folder name inside the package *is* the URL segment.
 `_ViuBundleSingleFileComponentCss` is gated by MSBuild `Inputs`/`Outputs`, and the `ViuBundleCss`
 task additionally content-compares before writing, so a no-op rebuild never moves the timestamp.
 `ResolveViuSingleFileComponentCssAssets` deliberately runs on **every** build so the asset stays
-registered even when the file was unchanged — the same `DefineStaticWebAssets` path Blazor scoped
-CSS uses for `<App>.styles.css`.
+registered even when the file was unchanged through `DefineStaticWebAssets`.
+
+Scoped CSS was removed on 2026-09-14 ([V01.01.06.17], #367); no build property re-enables it.
+Ordinary component styles, CSS Modules, `ViuBundleCss`, library `.viu.css` packing, and CSS hot reload
+remain supported. See [CSS Modules](../guide/scaling-up/sfc-css-features.md#css-modules).
 
 `_ViuBundleSingleFileComponentCss` and `ResolveViuSingleFileComponentCssAssets` — and the
 `UsingTask` declaration itself — carry `Exists('$(ViuBundleCssTaskAssembly)')` in their conditions

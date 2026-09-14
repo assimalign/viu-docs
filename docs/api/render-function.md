@@ -553,7 +553,6 @@ actually consumed today:
 | --- | --- |
 | `InsertStaticContent` | **Consumed.** Required to mount a `Static` vnode; without it the renderer throws `NotSupportedException`. |
 | `QuerySelector` | Declared, never invoked by the current renderer. |
-| `SetScopeId` | Declared for scoped styles; **never invoked**. The compile-time half of scoped CSS ships (selectors are rewritten and bundled), but because nothing calls this op no element is ever stamped with `data-v-<hash>`, so scoped rules match nothing at runtime. See [SFC CSS Features](../guide/scaling-up/sfc-css-features.md). |
 | `CloneNode` | Declared, never invoked by the current renderer. |
 
 `PatchPropertyDelegate<TNode>` diverges from upstream by passing `elementTag` explicitly, because

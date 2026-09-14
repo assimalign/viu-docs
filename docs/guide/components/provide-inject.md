@@ -470,7 +470,7 @@ using Assimalign.Viu.RuntimeCore;
 
 > **Aspirational.** This is the target developer experience, not today's behavior, and the inject
 > line above would not work if you wrote it now. The `.viu` generator emits only `Render`,
-> `RenderCacheSize`, `ScopeId`, `ExtractedStyles`, `ApplyCssVariables`, and CSS-module accessors into
+> `RenderCacheSize`, `ExtractedStyles`, `ApplyCssVariables`, and CSS-module accessors into
 > the partial class alongside the merged `@script` members (with the block's leading `using`
 > directives hoisted above the namespace). It does **not** emit the `IComponentDefinition`
 > implementation that would bind `Render` to a `Setup` closure — and a property initializer runs at

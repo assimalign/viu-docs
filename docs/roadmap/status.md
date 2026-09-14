@@ -37,7 +37,9 @@ marker objects that throw. Everything below is stated against the code, not the 
 | Template compiler | `Assimalign.Viu.Syntax.Templates` | Implemented | `TemplateParser` → `Transformer` → `RenderFunctionEmitter`; every Vue 3 directive parses and compiles to C# render calls. |
 | `.viu` format and generator | `Assimalign.Viu.Syntax.SingleFileComponent`, `Assimalign.Viu.Syntax.Generators` | Partial — see below | `SingleFileComponentParser` plus `SingleFileComponentGenerator` emit a compiled `Render`, the merged `@script`, and style constants. |
 | CSS modules | `Assimalign.Viu.Syntax.Css`, `Assimalign.Viu.Tooling.Css`, `Assimalign.Viu.Tooling.Tasks` | Implemented | `CssModuleRewriter` renames classes at compile time, so it needs no runtime seam and works end to end. |
-| CSS scoping, `v-bind()` in CSS | same | **Partial — compile-time only** | `CssSyntaxParser`, `CssScopedRewriter`, and the `ViuBundleCss` task all produce correct output, but the two runtime seams are unwired: `SetScopeId` is never invoked (no element is stamped `data-v-<hash>`, so scoped and `:slotted()` rules match nothing) and the generated `ApplyCssVariables()` is never called. See [SFC CSS Features](../guide/scaling-up/sfc-css-features.md). |
+| Ordinary component styles | Compiler.Css and SDK tasks | Implemented | `ViuBundleCss`, library `.viu.css` packing, and CSS hot reload remain supported. |
+| Scoped CSS | — | **Removed 2026-09-14** | Owner decision [V01.01.06.17] (#367); `.viu` errors and `.vue` warns while compiling global CSS. Use [CSS Modules](../guide/scaling-up/sfc-css-features.md#css-modules). |
+| `v-bind()` in CSS | CSS compiler | **Runtime application deferred** | Compile-time extraction and rewriting remain for ordinary component styles; the Browser `CssVariables` directive remains available. |
 | Testing | `Assimalign.Viu.Testing` | Implemented | `ViuTest.Mount`, `ComponentWrapper`, `ElementWrapper`, `TestRenderer`, `TestSchedulerPump` — a DOM-free in-memory renderer. |
 | SDK and packaging | `Assimalign.Viu.Sdk` | Implemented | `<Project Sdk="Assimalign.Viu.Sdk">` plus the `Assimalign.Viu.App.Ref` / `.Runtime.browser-wasm` shared-framework packs, version `10.0.1-preview.2`. |
 
@@ -93,7 +95,7 @@ The `.viu` pipeline is real end to end *as a compiler* and incomplete *as a runt
 - **What works** — `SingleFileComponentParser` slices a `.viu` file into `@template`, `@script`, and
   `@style` blocks; `SingleFileComponentGenerator` compiles the template through the full template
   compiler, merges the `@script` C# under a `#line` map so errors resolve back to the `.viu` file,
-  and emits `ScopeId`, `ExtractedStyles`, the CSS-module accessor classes, and `ApplyCssVariables`.
+  and emits `ExtractedStyles`, the CSS-module accessor classes, and `ApplyCssVariables`.
 - **What is missing** — the generated `partial class` carries `internal static object? Render(<the
   component's own class> _ctx, object?[] _cache)` (the emitter substitutes the class name; there is no
   generic parameter) and `internal const int RenderCacheSize`, but it does **not** implement `IComponentDefinition`
@@ -150,7 +152,6 @@ consumer code; it is listed because its inertness is observable.
 | `Lifecycle.OnActivated` / `Lifecycle.OnDeactivated` | The hooks are stored, but nothing ever invokes them — they only fire under a KeepAlive parent, and KeepAlive is a marker. |
 | `Lifecycle.OnServerPrefetch` | The hook is stored; there is no server renderer to await it. Inert in client-only rendering. |
 | `ApplicationConfiguration.Performance` | Settable and ignored. The instrumentation ships with the devtools work. |
-| `RendererOptions<TNode>.SetScopeId` | Declared for scoped styles; the renderer never calls it. |
 | `RendererOptions<TNode>.CloneNode` / `QuerySelector` | Declared as optional node-ops; never invoked by the current renderer. |
 | `BrowserEventInvokerRegistry.ErrorSink` (internal) | Still a `Debug.WriteLine` placeholder — `ApplicationConfiguration.ErrorHandler` is not yet wired to it, so handler exceptions are invisible in a Release WASM build. |
 
@@ -259,9 +260,10 @@ reactivity, the VNode model, renderer and scheduler, the DOM bridge, the compone
 template compiler and codegen generator, the `.viu` format and its MSBuild integration, the command
 buffer, `v-model`/`v-show`, static hoisting, and diagnostics. The Wave 4 items delivered so far are
 `BaseTransition`, the DOM `Transition`/`TransitionGroup`, CSS modules, the CSS construction surface,
-`ViuBundleCss`, and the Viu rename (`V01.01.12.18`, itself a Wave 4 item). Scoped CSS and `v-bind()`
-in CSS are delivered **as compiler work only** — both still need their runtime seam wired before they
-do anything in a browser (see the Implemented table above). One Wave 5 item landed out of wave order:
+`ViuBundleCss`, and the Viu rename (`V01.01.12.18`, itself a Wave 4 item). Scoped CSS was removed
+on 2026-09-14 ([V01.01.06.17], #367), superseding the former runtime plan (#319). Ordinary styles,
+CSS Modules, bundling, and hot reload remain; generated reactive `v-bind()` application is deferred.
+One Wave 5 item landed out of wave order:
 the SDK/shared-framework packaging model (`V01.01.12.19`).
 
 **The plan's exit demos are not met.** `PLAN.md` names TodoMVC built from render functions as the

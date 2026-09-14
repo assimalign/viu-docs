@@ -245,7 +245,7 @@ The leading `using` directive is hoisted out of the class body into the generate
 region, which is why it sits flush against column 1.
 
 > **Not yet runnable.** A `.viu` file cannot be mounted today. The generator emits `Render`,
-> `RenderCacheSize`, `ScopeId`, `ExtractedStyles`, `ApplyCssVariables`, and CSS-module accessors into
+> `RenderCacheSize`, `ExtractedStyles`, `ApplyCssVariables`, and CSS-module accessors into
 > a `partial class`, and merges `@script` verbatim under a `#line` map — but that class does **not**
 > implement `IComponentDefinition` and emits no `Setup`, and it derives no `Properties` or `Emits`.
 > The runtime adapter that would join the compiled `Render` to the component runtime is unbuilt, so

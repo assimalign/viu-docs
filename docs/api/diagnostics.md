@@ -95,10 +95,8 @@ Three practical consequences:
   which is why the family is split three ways instead of carrying severity as data.
 - **`Hidden` collapses into the `Info` descriptor** rather than being dropped.
 
-In practice, every parser in the cluster reports at `Error` severity today —
-`SingleFileComponentError` hard-codes `DiagnosticSeverity.Error`, and both `CompilerError` and
-`CssError` do the same. The eight non-error descriptors exist so the public surface does not have to
-change when a warning tier lands, but nothing emits them yet.
+Container diagnostics carry their declared severity. In particular, `.vue` scoped styles report a
+warning and compile as ordinary global CSS, while `.viu` scoped styles report an error.
 
 Two more things worth knowing before you rely on these IDs:
 
@@ -107,6 +105,28 @@ Two more things worth knowing before you rely on these IDs:
 - **The `helpLinkUri` on all twelve `VIU` descriptors is stale.** It points at a `DIAGNOSTICS.md`
   under the old `vuecs` repository slug. The repository is `github.com/assimalign/viu`; follow the
   paths, not the slug. The `VUER` descriptors set no `helpLinkUri` at all.
+
+## Unsupported scoped styles
+
+Scoped CSS was removed on 2026-09-14 by owner decision [V01.01.06.17]
+([#367](https://github.com/assimalign/viu/issues/367)). The parser preserves the `scoped` option token
+and locates the diagnostic on its name.
+
+| Input | Parser code | Generator diagnostic | Editor diagnostic | Behavior |
+| --- | --- | --- | --- | --- |
+| `.viu` `<style scoped>` or legacy `@style scoped { }` | 1018, `ScopedStyleNotSupported` | `VIU1001`, Error | `VIU1018`, Error | Remove the option or use a CSS module. |
+| `.vue` `<style scoped>` | 1019, `VueScopedStyleNotSupported` | `VIU1002`, Warning | `VIU1019`, Warning | Compile as ordinary global CSS. |
+
+Both report:
+
+> Scoped styles are not supported; Viu compiles component styles as ordinary global stylesheets.
+> Remove the scoped option or use a CSS module.
+
+The source generator wraps parser codes by origin and severity; the editor prefixes each raw parser
+code with `VIU`. The differing IDs identify the same located problem in those two hosts.
+Ordinary component styles, bundling, hot reload, and
+[CSS Modules](../guide/scaling-up/sfc-css-features.md#css-modules) remain supported. Compile-time
+`v-bind()` extraction and rewriting remain; generated reactive application is deferred.
 
 ## `VUER` — the `[Reactive]` generator
 
@@ -438,7 +458,7 @@ enumerates:
 
 Malformed comments in particular are silently tolerated: none of codes 0, 10, 11, or 16 fires.
 
-The other nine are transform, generic, and DOM codes whose analysis Viu does not perform:
+The other eight are transform, generic, and DOM codes whose analysis Viu does not perform:
 
 | Code | Name | Why it is inert |
 | --- | --- | --- |
@@ -447,7 +467,6 @@ The other nine are transform, generic, and DOM codes whose analysis Viu does not
 | 47 | `XPrefixIdNotSupported` | Viu has no browser build with prefixing disabled |
 | 48 | `XModuleModeNotSupported` | There is no ES-module codegen mode |
 | 49 | `XCacheHandlerNotSupported` | `CacheHandlers` is off by design, so the conflict cannot arise |
-| 50 | `XScopeIdNotSupported` | Scope ids are applied by the style pipeline, not a codegen option |
 | 51 | `XVnodeHooks` | The removed `@vnode-*` form is not detected |
 | 63 | `XTransitionInvalidChildren` | The compiler performs no single-child validation for `<Transition>` |
 | 64 | `XIgnoredSideEffectTag` | Side-effect tags are not detected |
@@ -527,7 +546,7 @@ fixer *could* be added, but none exists — every diagnostic on this page is fix
 
 - [Single-File Components (.viu)](../guide/scaling-up/single-file-components.md) — the container
   rules the 1001–1008 catalog enforces.
-- [SFC CSS Features](../guide/scaling-up/sfc-css-features.md) — scoped styles, CSS Modules, and
+- [SFC CSS Features](../guide/scaling-up/sfc-css-features.md) — ordinary component styles, CSS Modules, and
   `v-bind()` in CSS.
 - [Reactivity Fundamentals](../guide/essentials/reactivity-fundamentals.md) — the `[Reactive]`
   generator requirements behind `VUER1001`–`VUER1004`.

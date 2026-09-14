@@ -438,7 +438,7 @@ using Assimalign.Viu.Reactivity;
     }
 }
 
-@style scoped {
+@style {
     .lead {
         margin: 0;
         color: #42556d;
@@ -469,17 +469,10 @@ What the container buys you, and what to notice:
   `_resolveComponent("ElapsedDisplay")`, so the child must be registered on the application
   (`app.Component("ElapsedDisplay", new ElapsedDisplay())`). Registration lookup is case-insensitive at
   render time even though the registry getter is exact-name.
-- **`@style scoped` is compiled, not shipped as CSS-in-JS** — the generator rewrites the block with a
-  `data-v-<hash>` scope id and emits it as `ScopeId` and `ExtractedStyles` constants on the partial
-  class. **Not yet implemented: the renderer never stamps that attribute onto an element.**
-  `RendererOptions<TNode>.SetScopeId` is declared and no code path in the repository ever calls it, so
-  a scoped rule compiles, bundles, and serves correctly while matching nothing in the browser. CSS
-  Modules is unaffected — it renames classes at compile time. Physical bundling is a separate
-  MSBuild step: the `ViuBundleCss` task re-parses the same `.viu` inputs and writes
-  `<AssemblyName>.viu.css` as a static web asset, which the host page must reference with an explicit
-  `<link>` — injection is not automatic. The WASM runtime does zero CSS work. Note that scoping is
-  per-component: a scoped rule in this file cannot reach `.meter-value`, which belongs to
-  `ElapsedDisplay`'s own template. See [SFC CSS Features](../guide/scaling-up/sfc-css-features.md).
+- **Component styles are bundled CSS** — the `ViuBundleCss` task writes the component stylesheet,
+  and the Browser SDK delivers and links it. The selectors are ordinary global CSS. Scoped CSS was
+  removed on 2026-09-14; use [CSS Modules](../guide/scaling-up/sfc-css-features.md#css-modules) for
+  component-specific classes. Plain styles, bundling, library packing, and hot reload remain.
 - **The render function is generated, not written** — the emitted partial class carries
   `internal static object? Render(StopwatchApplication _ctx, object?[] _cache)` alongside an
   `internal const int RenderCacheSize` constant, wrapped in `#line` directives that map compiler errors
@@ -494,8 +487,8 @@ The projection covers the template, the state, and the handlers; the lifecycle s
 
 With that caveat, comparing the two forms makes the value proposition concrete: the template block
 replaces about thirty lines of nested `VirtualNodeFactory` calls, the compiler assigns `PatchFlags`
-that the hand-written form leaves unset, and the scoped rules stop being global `<style>` entries in
-`index.html`.
+that the hand-written form leaves unset, and ordinary component rules move from `index.html` into
+the bundled stylesheet.
 
 ## Diagnostics mode
 

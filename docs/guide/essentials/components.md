@@ -191,7 +191,7 @@ namespace Demo
 Two details are load-bearing. First, because the generator classified `Count` as a
 `Reference<int>`, the template's `{{ Count }}` emitted `_ctx.Count.Value` — ref unwrapping is a
 compile-time decision, not a runtime one. Second, generated member names are reserved: do not
-re-declare `Render`, `RenderCacheSize`, `ScopeId`, `ExtractedStyles`, or `ApplyCssVariables` in a
+re-declare `Render`, `RenderCacheSize`, `ExtractedStyles`, or `ApplyCssVariables` in a
 sibling partial.
 
 > **Status:** Partial. The generator emits the compiled `Render`, the merged `@script`, and the style

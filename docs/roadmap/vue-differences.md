@@ -38,10 +38,12 @@ on this page follows from one of them.
   **returns the render function**; the closure it returns *is* the proxy-free realization of Vue's
   state object. Consequently there is no Options API, no mixins, and no
   [`app.config.globalProperties`](https://vuejs.org/api/application.html#app-config-globalproperties).
-- **`.viu` uses an @-block container** — a single-file component wraps its blocks in
-  `@template { … }` / `@script { … }` / `@style scoped { … }` rather than HTML-like tags. Block
-  *semantics* are unchanged from the [Vue SFC spec](https://vuejs.org/api/sfc-spec.html); only the
-  container differs. This was an explicit design decision dated 2026-07-17.
+- **`.viu` uses a hybrid container** — `<template>` and `<style>` tags with C# in `@script { }`.
+  The original 2026-07-17 `@template` / `@style` syntax remains a legacy input with migration
+  warnings. `.vue` remains a shipping compatibility input.
+- **Scoped CSS is unsupported** — removed 2026-09-14 ([V01.01.06.17], #367). `.viu` reports an
+  error; `.vue` warns and compiles ordinary global styles. Use
+  [CSS Modules](../guide/scaling-up/sfc-css-features.md#css-modules) for component-specific classes.
 - **Expression bodies are C#, not JavaScript** — markup syntax is Vue's verbatim, but everything
   inside `{{ }}`, `:prop="…"`, and `@click="…"` is parsed by Roslyn's
   `SyntaxFactory.ParseExpression` (multi-statement inline handlers go through
@@ -115,7 +117,7 @@ into a `partial class Counter` and merges the `@script` body verbatim into that 
     public void Increment() => Count.Value++;
 }
 
-@style scoped {
+@style {
     button { font-weight: 600; }
 }
 ```

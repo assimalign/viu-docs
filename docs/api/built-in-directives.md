@@ -538,11 +538,8 @@ uses whole words: `Properties`, `Attributes`, `Subtree`, `VirtualNode`.
   no C# spelling yet.
 - **Filters** — `HelperNames.ResolveFilter` exists for numeric parity only. Nothing parses or
   emits a filter. Vue 3 removed them.
-- **Scoped-style attribute injection** — `TransformOptions.ScopeId` is carried for parity. Two
-  places read it (the slot-outlet transform's argument-count logic and the static stringifier, which
-  would append it to stringified static markup), but the single-file-component generator never sets
-  it, so it is null in the real pipeline and nothing is injected. The scope id itself is real: the
-  generator emits it as a `ScopeId` constant (`data-v-<hash>`) on the generated component class.
+- **Scoped CSS was removed on 2026-09-14** — ordinary component styles and CSS Modules remain
+  supported. See [SFC CSS Features](../guide/scaling-up/sfc-css-features.md).
 
 ## See also
 

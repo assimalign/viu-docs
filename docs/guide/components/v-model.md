@@ -387,7 +387,7 @@ but are **never emitted by any code path** — do not expect them. See
   a JavaScript object literal, as described above.
 - **No `defineModel` equivalent.** Vue's macro collapses the prop and emit into one writable ref;
   Viu has no compiler macro for it, because `.viu` script analysis does not yet synthesize props or
-  emits at all. The `.viu` generator emits only `Render`, `RenderCacheSize`, `ScopeId`,
+  emits at all. The `.viu` generator emits only `Render`, `RenderCacheSize`,
   `ExtractedStyles`, `ApplyCssVariables`, and CSS-module accessors into the partial class — a
   component's `Properties` and `Emits` tables are hand-written C#. See
   [Single-File Components (.viu)](../scaling-up/single-file-components.md).

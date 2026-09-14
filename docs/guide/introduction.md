@@ -29,7 +29,7 @@ opcodes into DOM calls.
 | `Assimalign.Viu.Syntax.Templates` | `@vue/compiler-core` + `@vue/compiler-dom` | Implemented |
 | `Assimalign.Viu.Syntax.SingleFileComponent` | `@vue/compiler-sfc` (container only) | Implemented |
 | `Assimalign.Viu.Syntax` / `.Css` / `.Html` / `.JavaScript` | shared parser primitives, plus the CSS, HTML, and JS parsers the compilers sit on | Implemented |
-| `Assimalign.Viu.Tooling.Css` | the scoped-CSS / CSS-modules compiler and style bundler shared by the generator and the build task | Implemented |
+| `Assimalign.Viu.Tooling.Css` | the ordinary component-style / CSS-modules compiler and style bundler shared by the generator and the build task | Implemented |
 | `Assimalign.Viu.Testing` | `@vue/test-utils` + `@vue/runtime-test` | Implemented |
 | `Assimalign.Viu.Sdk` | Vite + `@vitejs/plugin-vue` | Implemented |
 | — | [`vue-router`](https://router.vuejs.org) | Not present |
@@ -73,7 +73,7 @@ A `.viu` single-file component, the intended authoring format:
     public void Increment() => Count.Value++;
 }
 
-@style scoped {
+@style {
     .counter { font-variant-numeric: tabular-nums; }
 }
 ```
@@ -99,7 +99,7 @@ Two things in that first example are worth stating plainly before you build on t
 - **The `.viu` compiler is real; the runtime binding is not finished.** The generator compiles
   `@template` into an `internal static object? Render(Counter _ctx, object?[] _cache)` method,
   merges `@script` into the partial class under a `#line` map, and compiles `@style` into
-  `ScopeId` and `ExtractedStyles` constants. It does **not** emit an `IComponentDefinition`
+  the `ExtractedStyles` constant. It does **not** emit an `IComponentDefinition`
   implementation, so today you supply the `Setup` bridge yourself in a sibling partial (shown
   below). See [Single-File Components](scaling-up/single-file-components.md).
 - **No shipping example compiles a `.viu` file yet.** The compilation path is proven by generator
@@ -268,8 +268,8 @@ through the component contract. See [Components](essentials/components.md).
 
 A `.viu` file is Viu's `.vue`, with one deliberate container change decided on 2026-07-17: blocks
 are wrapped in `@name { … }` rather than HTML-like `<template>` / `<script>` / `<style>` tags. Block
-*semantics* follow the Vue SFC spec unchanged — `scoped`, `module`, `module="name"`, and `lang` all
-mean what they mean upstream.
+options preserve CSS Modules (`module` and `module="name"`) and `lang`. Scoped CSS was removed
+on 2026-09-14; use ordinary component styles or CSS Modules.
 
 The parser is line-oriented and **column 0 is structural**: at the top level a line whose first
 character is `@` opens a block, and inside a block a line whose first character is `}` closes it.
@@ -278,16 +278,13 @@ and why **block content must be indented**. A CSS rule written flush-left will c
 early.
 
 ```viu
-@style scoped {
+@style {
     .box .inner { color: red; }
 }
 ```
 
-That compiles to a `data-v-<hash>` scope id derived from the project-relative file path, with the
-attribute landing on the last compound selector, matching upstream. **The runtime half is not wired
-yet** — nothing calls `RendererOptions<TNode>.SetScopeId`, so no element is ever stamped with the
-attribute and a scoped rule matches nothing in the browser today. CSS Modules works end to end,
-because it renames classes at compile time. See
+The block compiles as ordinary global CSS. Viu does not rewrite its selectors or stamp component
+scope attributes. CSS Modules provide deterministic component-specific class names. See
 [Single-File Components](scaling-up/single-file-components.md) and
 [SFC CSS Features](scaling-up/sfc-css-features.md).
 

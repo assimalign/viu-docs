@@ -515,8 +515,7 @@ See [Compiler Diagnostics](../../api/diagnostics.md) for the full table.
 - **`<Suspense>` `#fallback` slot handling** — `Suspense` is a marker object that throws
   `NotSupportedException` when rendered; there is no async boundary and no fallback-slot support. See
   [KeepAlive, Teleport & Suspense](../built-ins/deferred-built-ins.md).
-- **Scope-id attribute injection for slotted content** — `TransformOptions.ScopeId` exists and is read
-  only by the slot-outlet transform's argument-count logic; no scope-id attribute is emitted. See
-  [SFC CSS Features](../scaling-up/sfc-css-features.md).
+- **Scoped CSS was removed on 2026-09-14** — ordinary component styles and CSS Modules remain
+  supported. See [SFC CSS Features](../scaling-up/sfc-css-features.md).
 
 See [Project status](../../roadmap/status.md) for the area-by-area picture.

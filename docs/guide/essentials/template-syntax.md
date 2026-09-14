@@ -386,13 +386,8 @@ Each bullet says which.
   `new Function`. Viu forbids dynamic code generation, so no interpolation or dynamic `v-bind` is ever
   classified above `ConstantType.NotConstant`. Only static text, static attributes, and
   compiler-injected literals reach the higher levels.
-- **Scoped-style attribute injection from the transform** — `TransformOptions.ScopeId` exists and the
-  static stringifier honours it, but the `.viu` generator builds its options with
-  `TransformOptions.CreateDom()` and never sets it. Scoping is applied by the SFC pipeline instead:
-  the generator emits a `ScopeId` constant on the component and rewrites the selectors. **The runtime
-  half is not wired** — `RendererOptions<TNode>.SetScopeId` is declared but never invoked, so no
-  element ever carries the `data-v-<hash>` attribute and scoped rules currently match nothing. See
-  [SFC CSS Features](../scaling-up/sfc-css-features.md).
+- **Scoped CSS was removed on 2026-09-14** — ordinary component styles and CSS Modules remain
+  supported. See [SFC CSS Features](../scaling-up/sfc-css-features.md).
 
 For the full picture of what is built, partial, and absent, see
 [Project Status](../../roadmap/status.md). For the naming map from Vue's camelCase to Viu's

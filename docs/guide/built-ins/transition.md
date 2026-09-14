@@ -68,7 +68,7 @@ a dynamic `:is`.
     public Reference<bool> Show = Reactive.Reference(false);
 }
 
-@style scoped {
+@style {
     .fade-enter-active,
     .fade-leave-active {
         transition: opacity 0.3s ease;
@@ -91,7 +91,7 @@ reference, so the compiler inserts `.Value` in **both** read and write positions
 
 The template compiler resolves the `<Transition>` tag to the `_Transition` helper and the generated
 render binds it against `DomRenderHelpers._Transition`, which is `Transition.Instance` itself. See
-[SFC CSS Features](../scaling-up/sfc-css-features.md) for what `scoped` does to those class names.
+[SFC CSS Features](../scaling-up/sfc-css-features.md) for ordinary styles and CSS Modules.
 
 ## Transition props
 
@@ -442,7 +442,7 @@ choreography `Transition` resolves, and children that merely move get a FLIP tra
     public sealed record ListItem(int Id, string Label);
 }
 
-@style scoped {
+@style {
     .list-enter-active,
     .list-leave-active,
     .list-move {
@@ -554,13 +554,10 @@ Two details a reader may notice and misread:
 Everything above works. These are the known gaps, each a scheduled follow-up rather than a
 misbehavior.
 
-- **`@style scoped` transition classes do not match yet.** Every `.viu` snippet on this page puts its
-  `.fade-*` / `.list-*` rules in a `@style scoped` block, which is the intended authoring form — but
-  the renderer never stamps the `data-v-<hash>` attribute those rewritten selectors depend on
-  (`RendererOptions<TNode>.SetScopeId` is declared and never invoked). Until that lands, transition
-  CSS must live in a **non-scoped** `@style` block or in a plain stylesheet to have any effect. The
-  class add/remove choreography itself is fully implemented — it is only the scoped selector that
-  fails to match. See [SFC CSS Features](../scaling-up/sfc-css-features.md).
+- **Transition styles use ordinary CSS.** Scoped CSS was removed on 2026-09-14. Keep named
+  transition classes in ordinary style blocks; CSS Modules remain available when the supplied
+  transition classes use the generated names. See
+  [SFC CSS Features](../scaling-up/sfc-css-features.md#css-modules).
 - **Transition operations always run direct, never through the command buffer** — even with
   `BrowserRuntime.CreateApp(root, useCommandBuffer: true)`, the class add/remove, timing, and FLIP
   operations bypass the batched interop frame, because they are frame-timed and read-then-write.
@@ -593,7 +590,7 @@ misbehavior.
   the two things a transition wraps.
 - [Slots](../components/slots.md) — `ComponentSlots`, `SlotFlags`, and why structurally-changing
   content needs `Dynamic`.
-- [SFC CSS Features](../scaling-up/sfc-css-features.md) — `@style scoped` and how it rewrites the
+- [SFC CSS Features](../scaling-up/sfc-css-features.md) — ordinary component styles, CSS Modules, and
   transition class names.
 - [KeepAlive, Teleport & Suspense](deferred-built-ins.md) — the built-ins that are markers only.
 - [Differences from Vue 3](../../roadmap/vue-differences.md) — the naming map and the behavioral

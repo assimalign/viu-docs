@@ -94,7 +94,7 @@ or, in a template, with the ordinary `v-bind` shorthand:
 
 > **Aspirational.** That template compiles — `:text` and `:running` become the `text` and `running`
 > vnode props and `@reset` becomes an `onReset` prop, exactly as the C# above writes them by hand.
-> But the `.viu` generator emits only `Render`, `RenderCacheSize`, `ScopeId`, `ExtractedStyles`,
+> But the `.viu` generator emits only `Render`, `RenderCacheSize`, `ExtractedStyles`,
 > `ApplyCssVariables`, and CSS-module accessors into the partial class. It does **not** yet emit the
 > `IComponentDefinition` implementation that binds `Render` to a `Setup` closure, and no end-to-end
 > `.viu` example project ships in the Viu repo — so the hand-written C# form is the working path
@@ -364,7 +364,7 @@ everywhere else (including `progress`). Null becomes the empty string rather tha
 ## Not yet implemented
 
 - **No `defineProps` / macro-declared props.** The `.viu` source generator emits only `Render`,
-  `RenderCacheSize`, `ScopeId`, `ExtractedStyles`, `ApplyCssVariables`, and CSS-module accessors into
+  `RenderCacheSize`, `ExtractedStyles`, `ApplyCssVariables`, and CSS-module accessors into
   the partial class. A prop table in a single-file component is therefore hand-written C# in the
   `@script` block or a sibling partial, exactly as shown above. See
   [Single-File Components (.viu)](../scaling-up/single-file-components.md).

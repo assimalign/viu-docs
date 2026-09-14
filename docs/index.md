@@ -3,8 +3,8 @@
 Viu is a C#/.NET re-implementation of Vue.js 3 that runs in the browser on WebAssembly.
 
 > **Status:** Partial. The rendering stack, reactivity, and the template/`.viu` compiler are
-> implemented, but the class the `.viu` generator emits is not yet mountable, scoped CSS and
-> `v-bind()` in CSS stop at the compiler, and Router, Store, SSR, and DevTools do not exist. See
+> implemented. Scoped CSS was removed on 2026-09-14; ordinary component styles and CSS Modules
+> remain supported. Generated reactive `v-bind()` application remains deferred. See
 > [Project status](roadmap/status.md).
 
 Viu ports Vue 3.5 to C# rather than taking inspiration from it. The reactivity engine is a port of
@@ -38,7 +38,7 @@ one deliberate divergence: blocks use an `@`-block container rather than HTML-li
     public Reference<int> count = Reactive.Reference(0);
 }
 
-@style scoped {
+@style {
     .counter button { font-weight: 600; }
 }
 ```
@@ -132,7 +132,8 @@ for `.value`, `ComponentProperties` for `props`, `ComponentAttributes` for `attr
 | `v-model` runtime directives | Implemented (the *template-compiled* form does not round-trip yet — hand-written works) |
 | Template compiler and `.viu` source generator | Implemented (emitted class is not yet mountable) |
 | CSS Modules | Implemented |
-| Scoped CSS and `v-bind()` in CSS | Compile-time only — the runtime never stamps `data-v-<hash>` and never calls `ApplyCssVariables()`, so neither takes effect in the browser yet |
+| Scoped CSS | Removed 2026-09-14; use ordinary component styles or CSS Modules |
+| `v-bind()` in CSS | Compile-time extraction and rewriting remain; generated reactive application is deferred |
 | `Transition` and `TransitionGroup` | Implemented |
 | In-memory test renderer (`ViuTest`) | Implemented |
 | MSBuild SDK and shared-framework packaging | Implemented |
@@ -148,16 +149,14 @@ inline. The load-bearing absences:
   `NotSupportedException`. See [KeepAlive, Teleport & Suspense](guide/built-ins/deferred-built-ins.md)
   for the workarounds available now.
 - **`.viu`-to-runtime wiring** — the generator compiles a `.viu` file into a partial class carrying a
-  `Render` method, `ScopeId`, and `ExtractedStyles`, and this is proven by the generator and
+  `Render` method and `ExtractedStyles`, and this is proven by the generator and
   compiled-render test suites. The glue that makes that class a mountable `IComponentDefinition` has
   not landed, and no shipping example project compiles a `.viu` file. The `.viu` examples across this
   site describe the intended authoring experience; the hand-written `IComponentDefinition` path is
   what runs end to end today.
-- **Scoped CSS and `v-bind()` in CSS stop at the compiler** — selectors are rewritten and bundled
-  correctly, but `RendererOptions<TNode>.SetScopeId` is never invoked (so no element carries
-  `data-v-<hash>` and scoped rules match nothing) and the generated `ApplyCssVariables()` is never
-  called (so `v-bind()` custom properties are never applied). CSS Modules is the one style feature
-  that works end to end. See [SFC CSS Features](guide/scaling-up/sfc-css-features.md).
+- **Scoped CSS was removed on 2026-09-14** — use ordinary component styles or CSS Modules.
+  `v-bind()` compile-time processing remains; generated reactive application is deferred. See
+  [SFC CSS Features](guide/scaling-up/sfc-css-features.md).
 - **Template-compiled `v-model` and inline `v-on` handlers do not complete the round trip** — both
   compile, and both have a working hand-written equivalent, but the last hop between the emitted
   delegate shape and the runtime is unwired. See
@@ -225,7 +224,7 @@ The full wave-by-wave breakdown lives in [Project status](roadmap/status.md).
 
 - [Single-File Components (.viu)](guide/scaling-up/single-file-components.md) — the `@`-block format
   in full.
-- [SFC CSS Features](guide/scaling-up/sfc-css-features.md) — scoped styles, CSS Modules, and
+- [SFC CSS Features](guide/scaling-up/sfc-css-features.md) — ordinary component styles, CSS Modules, and
   `v-bind()`.
 - [The Viu SDK & Build](guide/scaling-up/sdk-and-build.md) — `Assimalign.Viu.Sdk` and the MSBuild
   pipeline.

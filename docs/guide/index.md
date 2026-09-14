@@ -85,7 +85,7 @@ internal sealed class Counter : IComponentDefinition
 ```
 
 Second, a `.viu` single-file component. Blocks are `@template { … }`, `@script { … }`, and
-`@style scoped { … }` — an `@`-block container rather than
+`@style { … }` — an `@`-block container rather than
 [Vue's tag-based SFC](https://vuejs.org/guide/scaling-up/sfc.html), though the markup inside `@template`
 is standard Vue template syntax with C# expressions:
 
@@ -98,7 +98,7 @@ is standard Vue template syntax with C# expressions:
     public string Message = "Hello";
 }
 
-@style scoped {
+@style {
     .box { color: red; }
 }
 ```
@@ -194,11 +194,9 @@ least finished part of Viu. Read those tails before committing to a build or tes
   format specification: `@`-block containers, the column-0 structural rule, what the generator emits, and
   the eight parse error codes. Gaps: no `lang="scss"`/`"less"` pre-processor, and no shipped end-to-end
   `.viu` example project.
-- **[SFC CSS Features](scaling-up/sfc-css-features.md)** — `@style scoped`, CSS Modules, and `v-bind()`
-  in CSS, plus how the bundle reaches the page. Gaps: **`scoped` and `v-bind()` are compile-time only**
-  — the renderer never stamps `data-v-<hash>` and never calls `ApplyCssVariables()`, so only CSS
-  Modules works end to end; plus no SCSS/LESS, no camelCase style-key normalization, and the
-  utility-first CSS engine is entirely unbuilt.
+- **[SFC CSS Features](scaling-up/sfc-css-features.md)** — ordinary component styles, CSS Modules,
+  bundling, and hot reload. Scoped CSS was removed on 2026-09-14; generated reactive `v-bind()`
+  application remains deferred.
 - **[The Viu SDK & Build](scaling-up/sdk-and-build.md)** — `Assimalign.Viu.Sdk`, the shared framework,
   and every consumer-settable MSBuild property. Gaps: no `dotnet new` templates, no public NuGet feed,
   and no hot-reload or dev-loop story.

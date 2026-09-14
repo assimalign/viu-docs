@@ -204,7 +204,8 @@ Four things happen that a reader will actually notice in their working tree or t
 This is the C# analogue of `@vitejs/plugin-vue`'s file matching, and it requires zero wiring — drop an
 `App.viu` next to your `.csproj` and it compiles. `KeepDuplicates="false"` guards against a
 hand-added duplicate producing colliding generated hint names. The generator reads `RootNamespace` and
-`ProjectDir` to derive the namespace, class name, and the `data-v-<hash>` scope id. See
+`ProjectDir` to derive the namespace, class name, and stable CSS Module naming salt. Scoped CSS
+was removed on 2026-09-14; no style-scope identifier is emitted. See
 [Single-File Components](single-file-components.md) for the format itself.
 
 ### 2. `viu-dom.js` is copied into your source `wwwroot`

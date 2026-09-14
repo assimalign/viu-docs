@@ -22,7 +22,7 @@ uses **`@`-block container syntax** (design decision, 2026-07-17):
     public string Message = "Hello";
 }
 
-@style scoped {
+@style {
     .box { color: red; }
 }
 ```
@@ -37,7 +37,7 @@ compiler (see [Template Syntax](../essentials/template-syntax.md)).
 | `@template { … }`               | `<template> … </template>`      | The component's markup.                        |
 | `@script { … }`                 | `<script> … </script>`          | The component's C# partial-class body.         |
 | `@style { … }`                  | `<style> … </style>`            | Component CSS; a file may declare several.     |
-| `@style scoped { … }`           | `<style scoped>`                | [Scoped CSS](https://vuejs.org/api/sfc-css-features.html#scoped-css). |
+| Unsupported `scoped` option | `.vue` `<style scoped>` | Removed 2026-09-14: `.viu` reports an error; `.vue` warns and compiles global CSS. Use [CSS Modules](sfc-css-features.md#css-modules). |
 | `@style module { … }`           | `<style module>`                | [CSS Modules](https://vuejs.org/api/sfc-css-features.html#css-modules), default name. |
 | `@style module="theme" { … }`   | `<style module="theme">`        | CSS Modules bound to a named accessor.         |
 | `@docs { … }` (any other name)  | `<docs>`                        | Custom block, preserved verbatim.              |
@@ -108,18 +108,18 @@ A header line has the shape `@<name> <options>? {`.
 - **Names match `[A-Za-z_][A-Za-z0-9_-]*`** — a letter or `_`, then letters, digits, `_`, or `-`.
 - **The three well-known names are matched case-sensitively, in lowercase** — `template`, `script`,
   `style`. `@Template` is therefore a *custom* block, not a template block.
-- **Options are valueless flags or double-quoted key/value pairs** — `scoped`, `lang="scss"`. There must
+- **Options are valueless flags or double-quoted key/value pairs** — `module`, `lang="scss"`. There must
   be no whitespace around `=`, but the two sides fail differently: an unquoted or missing value
   (`lang=scss`, `lang= "scss"`) reports `MalformedOptionValue`, while whitespace *before* the `=`
   (`lang = "scss"`) parses `lang` as a valueless flag and then reports the orphaned `=` and `"scss"` as
   `MalformedBlockHeader`. There is no escape syntax, so a value cannot contain a double quote.
-- **No space is required before the brace** — `@style scoped{` is valid, and tabs count as inline
+- **No space is required before the brace** — `@style module{` is valid, and tabs count as inline
   whitespace in a header.
 - **Unknown options are preserved, not rejected** — reach them through
   `SingleFileComponentBlock.HasOption(name)` and `SingleFileComponentBlock.GetOptionValue(name)`, both of
   which compare ordinally.
 
-Typed options surface as properties: `SingleFileComponentStyleBlock.Scoped`,
+Typed options surface as properties:
 `SingleFileComponentStyleBlock.IsModule`, `SingleFileComponentStyleBlock.ModuleName`, and
 `SingleFileComponentBlock.Lang`. Note that `ModuleName` is `null` both when `module` is absent *and* when
 it is present as a valueless flag — test presence with `IsModule`.
@@ -164,7 +164,7 @@ it is present as a valueless flag — test presence with `IsModule`.
     }
 }
 
-@style scoped {
+@style {
     .counter {
         display: grid;
         gap: 0.5rem;
@@ -218,9 +218,7 @@ namespace Demo
     public string Message = "Hello";
 #line default
 
-        internal const string ScopeId = "data-v-9d968641";
-
-        internal const string ExtractedStyles = ".box[data-v-9d968641] {\n  color: red;\n}\n";
+        internal const string ExtractedStyles = ".box {\n  color: red;\n}\n";
     }
 }
 ```
@@ -234,9 +232,8 @@ from a sibling `.cs` partial — and a sibling partial must **not** redeclare an
 | ------------------------------- | ----------------------------------------------- |
 | `Render`                        | The component has an `@template` block.         |
 | `RenderCacheSize`               | The component has an `@template` block.         |
-| `ScopeId`                       | At least one `@style` block is `scoped`.        |
 | `ExtractedStyles`               | The component declares any `@style` block.      |
-| `ApplyCssVariables`             | A `@style` block uses `v-bind()`.               |
+| CSS variable expression metadata | A style block uses `v-bind()`; runtime application remains deferred. |
 | CSS-module accessor classes     | A `@style` block is `module` — `Style`, or the pascal-cased module name. |
 
 The two `using static` imports are emitted **only** when a render body exists. Render helpers bind purely
@@ -316,7 +313,7 @@ No per-project wiring is required. The shipped props and targets do the work —
 The generator reads **only** `.viu` additional files plus those two build properties — never the
 `Compilation`, symbols, or `SourceText` — so unrelated C# edits never re-run it. See
 [The Viu SDK & Build](./sdk-and-build.md) for the surrounding SDK, and
-[SFC CSS Features](./sfc-css-features.md) for scoped styles, CSS Modules, `v-bind()`, and the CSS bundle.
+[SFC CSS Features](./sfc-css-features.md) for ordinary component styles, CSS Modules, `v-bind()`, and the CSS bundle.
 
 ## Diagnostics
 
@@ -397,7 +394,7 @@ foreach (var error in result.Errors)
 
 var descriptor = result.Descriptor;
 var markup = descriptor.Template?.Content;
-var scoped = descriptor.Styles.Where(style => style.Scoped).ToList();
+var modules = descriptor.Styles.Where(style => style.IsModule).ToList();
 ```
 
 `SingleFileComponentParseResult` always produces a `SingleFileComponentDescriptor`, even for malformed
@@ -440,13 +437,12 @@ descriptors unequal, and invalidates the cache — by design.
   block at all. (A scriptless component gets `BindingMetadata.Empty`, where the flag is `false`.) There is
   no `setup` block option and no options-API path. This matches Viu's broader stance: see
   [Differences from Vue 3](../../roadmap/vue-differences.md).
-- **No warning or informational container diagnostics** — `SingleFileComponentError` hard-codes
-  `DiagnosticSeverity.Error`. The `VIU1002`/`VIU1003` tiers and their siblings exist as descriptors but no
-  parser emits them today.
+- **Container diagnostics preserve severity.** `.viu` scoped styles report `VIU1001` Error
+  (parser code 1018); `.vue` scoped styles report `VIU1002` Warning (parser code 1019) and compile
+  as ordinary global CSS. Both locate the `scoped` option.
 - **The VIU IDs are not yet a frozen contract** — all twelve descriptors are still in
   `AnalyzerReleases.Unshipped.md`.
-- **Content-folded scope-id hashing** — the scope id is derived from the project-relative **path**, so
-  editing a component never changes it, but moving or renaming the file does. Folding content into the
-  hash is a later optimization.
+- **Scoped CSS was removed on 2026-09-14** — ordinary component styles and CSS Modules remain
+  supported. See [SFC CSS Features](sfc-css-features.md).
 - **No shipped end-to-end `.viu` example project** — the repo contains only `.designing/SampleApp/App.viu`,
   a near-empty shell. The one working demo is hand-written; see [Stopwatch](../../examples/stopwatch.md).

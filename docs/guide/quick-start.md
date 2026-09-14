@@ -273,7 +273,7 @@ A `.viu` single-file component is Viu's counterpart to a
     public void Increment() => Count.Value++;
 }
 
-@style scoped {
+@style {
     .counter { font-family: system-ui; }
 }
 ```
@@ -309,8 +309,8 @@ Template expressions are **C#, not JavaScript**. `{{ Items.Where(x => x.Active).
 
 The `.viu` generator currently emits a partial-class scaffold — the compiled render function
 (`internal static object? Render(App _ctx, object?[] _cache)` plus an `internal const int
-RenderCacheSize`), your merged `@script` C# under a `#line` map, and the `ScopeId`/`ExtractedStyles`
-constants — but the generated class does **not** yet implement `IComponentDefinition`, and nothing
+RenderCacheSize`), your merged `@script` C# under a `#line` map, and the `ExtractedStyles`
+constant — but the generated class does **not** yet implement `IComponentDefinition`, and nothing
 calls `Render`. So `new App()` above is the intended developer experience rather than a shape you can
 build end to end right now. The equivalent hand-written component is fully working today:
 
@@ -364,15 +364,9 @@ desyncs the .NET SDK's compression and endpoint-negotiation graph, so the explic
 shipped, publish-safe path. If you set `<PackageId>` explicitly the bundle is renamed with it and
 your hand-written `href` will 404 — rename both, or set `ViuSingleFileComponentCssBundleName`.
 
-Scoped blocks are rewritten with a `data-v-<hash>` scope id derived from the component's
-**project-relative path**, so moving or renaming a `.viu` file changes its scope id but editing its
-body does not.
-
-> **Not yet implemented — the scope attribute is never stamped.** The rewrite above is real and the
-> CSS ships in the bundle, but `RendererOptions<TNode>.SetScopeId` is declared and never called, so no
-> element carries `data-v-<hash>` and a `@style scoped` rule matches nothing in the browser today.
-> CSS Modules (`@style module`) is unaffected, because it renames classes at compile time rather than
-> relying on a runtime attribute. See [SFC CSS Features](scaling-up/sfc-css-features.md).
+Scoped CSS was removed on 2026-09-14. Ordinary component stylesheets are global; use
+[CSS Modules](scaling-up/sfc-css-features.md#css-modules) for component-specific class names.
+`.viu` reports an error for the `scoped` option; `.vue` warns and compiles ordinary global CSS.
 
 Finally, add a `.gitignore` rule. `wwwroot/_content/` is written into your **source** tree on every
 build (a dev-host constraint — the WASM dev host only serves the app's source `wwwroot`), so it is a

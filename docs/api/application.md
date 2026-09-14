@@ -440,7 +440,6 @@ public sealed class RendererOptions<TNode>
     public required PatchPropertyDelegate<TNode> PatchProperty { get; init; }
 
     public Func<string, TNode?>? QuerySelector { get; init; }
-    public Action<TNode, string>? SetScopeId { get; init; }
     public Func<TNode, TNode>? CloneNode { get; init; }
     public InsertStaticContentDelegate<TNode>? InsertStaticContent { get; init; }
 }
@@ -452,10 +451,9 @@ public sealed class RendererOptions<TNode>
 - **`default(TNode)` means "no node"** — for a value-type `TNode` such as the browser's `int` handle,
   `default` is the reserved absent sentinel. Your platform must never issue it as a real node.
 - **Only `InsertStaticContent` among the optional ops is consumed today** — `QuerySelector`,
-  `SetScopeId`, and `CloneNode` are declared but never called by the current renderer. `SetScopeId`
-  is the runtime half of scoped CSS: the compiler rewrites and bundles scoped selectors today, but
-  because nothing invokes this op no element is ever stamped with `data-v-<hash>`, so **scoped rules
-  currently match nothing** — see [SFC CSS Features](../guide/scaling-up/sfc-css-features.md).
+  and `CloneNode` are declared but never called by the current renderer. Scoped CSS was removed on
+  2026-09-14; no scope-stamping operation exists. Use
+  [CSS Modules](../guide/scaling-up/sfc-css-features.md#css-modules) for component-specific classes.
   Mounting a `Static` vnode without `InsertStaticContent` throws
   `NotSupportedException` with an explicit contract message.
 
