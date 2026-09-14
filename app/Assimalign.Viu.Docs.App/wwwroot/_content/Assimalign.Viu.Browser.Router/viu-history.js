@@ -48,6 +48,21 @@ function computeScroll() {
     return { left: window.scrollX, top: window.scrollY }
 }
 
+// Location.search/hash collapse an empty query/fragment to ''. Read the serialized suffix so
+// `/page?`, `/page#`, and `/page?#` remain distinct full locations across readiness and popstate.
+// The first '?' starts a query only before the first '#'; later '?' belongs to fragment text.
+// External URL-format contract: https://url.spec.whatwg.org/#url-parsing; Viu contract: [RTR-12].
+function readLocationSuffix() {
+    const href = window.location.href
+    const fragmentPosition = href.indexOf('#')
+    const queryPosition = href.indexOf('?')
+    const hasQuery = queryPosition >= 0 && (fragmentPosition < 0 || queryPosition < fragmentPosition)
+    return {
+        search: hasQuery ? href.slice(queryPosition, fragmentPosition < 0 ? href.length : fragmentPosition) : '',
+        hash: fragmentPosition >= 0 ? href.slice(fragmentPosition) : ''
+    }
+}
+
 // Reconstruct the flat primitives into the object the History API stores. '' decodes back to null
 // so the round-tripped state matches the .NET RouterHistoryState exactly.
 function buildStateObject(back, current, forward, replaced, position, scroll) {
@@ -73,13 +88,14 @@ export async function initialize() {
 export const history = {
     // Batched read: raw location components + the current entry's state in a single crossing.
     readSnapshot: () => {
+        const suffix = readLocationSuffix()
         const state = window.history.state
         const hasState = !!(state && typeof state.position === 'number')
         const scroll = hasState && state.scroll ? state.scroll : null
         return [
             window.location.pathname,
-            window.location.search,
-            window.location.hash,
+            suffix.search,
+            suffix.hash,
             window.location.host,
             String(window.history.length),
             hasState ? '1' : '0',
@@ -186,11 +202,12 @@ export const history = {
             const scroll = hasState
                 ? (savedPositions.get(arrivedPosition) ?? state.scroll ?? null)
                 : null
+            const suffix = readLocationSuffix()
             dispatchPopState(
                 subscriptionIdentifier,
                 window.location.pathname,
-                window.location.search,
-                window.location.hash,
+                suffix.search,
+                suffix.hash,
                 window.location.host,
                 window.history.length,
                 hasState,

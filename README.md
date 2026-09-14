@@ -38,9 +38,9 @@ The application has no hand-written page catalog, link rewriter, heading identif
 fetch service, or Markdown view template. Markdown parsing still happens at runtime; the build
 generates metadata, not HTML.
 
-> **Local package prerequisites:** the client pins Viu `10.0.0-beta.11`,
-> `Assimalign.Cohesion.Viu.Markdown` / `.Hosting` / `.Hosting.Browser` `10.0.0-beta.3`; the server
-> consumes `Assimalign.Cohesion.Viu.Server` `10.0.0-beta.3`. The Markdown package consumes
+> **Local package prerequisites:** the client pins Viu `10.0.0-beta.12`,
+> `Assimalign.Cohesion.Viu.Markdown` / `.Hosting` / `.Hosting.Browser` `10.0.0-beta.4`; the server
+> consumes `Assimalign.Cohesion.Viu.Server` `10.0.0-beta.4`. The Markdown package consumes
 > `Assimalign.Cohesion.Content.Markdown` `10.0.0-beta.1`. These packages use the Cohesion-first
 > family name that replaced `Assimalign.Viu.Cohesion.*`. The root `NuGet.config` currently restores
 > them from the sibling repositories' local feeds. The Cohesion assemblies carry
@@ -75,21 +75,22 @@ The package's default recursive glob supplies these files to the incremental gen
 `Content` items in `ViuDocs.Client.csproj` also expose the same files as static web assets. Titles,
 descriptions, status text, and section order therefore update with ordinary Markdown edits.
 
-The client uses clean web history so native `#fragment` anchors keep the current page route. The
-server's SPA fallback handles direct route requests, and `<base href="/">` keeps assets rooted at
-the site. A render-option hook qualifies fragment-only anchors with the page route so the root base
-element does not send them to the landing page. They remain ordinary native anchors. The bootstrap
-converts old `#/guide/...` bookmarks to their equivalent clean URLs once.
-Internal Markdown links render as `RouterLink` components; there is no anchor-click interceptor.
-The router's optional `ScrollBehavior` is configured to wait for a heading in the destination page's
-article while Markdown downloads, then apply the router's `ScrollTarget`. `main.js` retains only this
-bounded heading-availability helper, the bookmark conversion, and the .NET bootstrap. It does not
+The client uses clean web history, and the server's SPA fallback handles direct route requests.
+`<base href="/">` keeps assets rooted at the site. A render-option hook qualifies fragment-only anchors
+with the page route so the root base element does not send them to the landing page. They remain
+ordinary native anchors, so the router's beta.12 fragment support does not remove this browser-base
+requirement. The bootstrap converts old `#/guide/...` bookmarks to their equivalent clean URLs once.
+Internal Markdown links render as `RouterLink` components and retain fragments as `route#fragment`;
+there is no anchor-click interceptor. Viu beta.12 matches the clean `RouteLocation.Path` and exposes
+the raw fragment without `#` as `RouteLocation.Fragment`. The router's optional `ScrollBehavior`
+uses those fields to wait for a heading in the destination page's article while Markdown downloads,
+then apply the router's `ScrollTarget`. `main.js` retains only this bounded heading-availability helper,
+the bookmark conversion, and the .NET bootstrap. It does not
 navigate on link clicks.
 
-`AppShell` uses a typed navigation method because the Viu beta.11 template generator unwraps a mutable
-collection property as `object` in `v-for`. It forwards depth one through a `v-bind` dictionary because
-beta.11 `RouterView` declares `depth` in its runtime contract but omits its parameter attribute. These
-small consumer workarounds preserve the catalog model and the router's existing runtime behavior.
+`AppShell` passes the nested outlet depth directly with `<RouterView :depth="1" />`, supported by
+Viu beta.12. It retains the typed `GetSections()` navigation method because the template generator
+still unwraps a mutable collection property as `object` in `v-for` (assimalign/viu#366).
 
 Markdown parsing and rendering still happen in the browser.
 `Assimalign.Viu.Docs.Web/Program.cs` marks the future hosting-model seam:
@@ -257,8 +258,8 @@ public sealed class Counter : IComponentDefinition
 ```
 
 `.viu` samples use the `@`-block container documented in the framework's authoritative format
-specification. Only the container differs from Vue; the block semantics are the Vue SFC spec unchanged,
-and the markup inside `@template` is standard Vue template syntax.
+specification. The markup inside `@template` is standard Vue template syntax. Styles are global;
+Viu beta.12 rejects scoped styles in `.viu` files.
 
 ```viu
 @template {
@@ -269,7 +270,7 @@ and the markup inside `@template` is standard Vue template syntax.
     public string Message = "Hello";
 }
 
-@style scoped {
+@style {
     div { color: red; }
 }
 ```

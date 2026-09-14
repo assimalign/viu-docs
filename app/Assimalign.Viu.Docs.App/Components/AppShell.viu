@@ -37,7 +37,7 @@
             </header>
 
             <main class="documentation-main">
-                <RouterView v-bind="RouteOutletArguments" />
+                <RouterView :depth="1" />
             </main>
         </div>
     </div>
@@ -60,19 +60,7 @@
     // A typed method keeps beta.11 template loop emission from unwrapping a mutable property as object.
     public IReadOnlyList<MarkdownSection> GetSections() => Sections;
 
-    // RouterView beta.11 declares depth in its runtime contract, without parameter metadata.
-    public IReadOnlyDictionary<string, object?> RouteOutletArguments { get; } =
-        new Dictionary<string, object?>(StringComparer.Ordinal) { ["depth"] = 1 };
-
-    public string CurrentPath
-    {
-        get
-        {
-            string path = Router.CurrentRoute.Value.Path;
-            int suffixIndex = path.IndexOfAny(['?', '#']);
-            return suffixIndex < 0 ? path : path[..suffixIndex];
-        }
-    }
+    public string CurrentPath => Router.CurrentRoute.Value.Path;
 
     public string PageTitle => CurrentPage?.Title ?? "Page not found";
 

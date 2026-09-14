@@ -6,7 +6,7 @@
   "msbuild-sdks": {
     "Assimalign.Cohesion.Sdk": "10.0.0-beta.1",
     "Assimalign.Cohesion.Sdk.Web": "10.0.0-beta.1",
-    "Assimalign.Viu.Sdk": "10.0.0-beta.11",
-    "Assimalign.Viu.Sdk.Browser": "10.0.0-beta.11"
+    "Assimalign.Viu.Sdk": "10.0.0-beta.12",
+    "Assimalign.Viu.Sdk.Browser": "10.0.0-beta.12"
   }
 }

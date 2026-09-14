@@ -51,7 +51,7 @@ builder.AddMarkdownContent(options =>
     options.RenderOptions = new MarkdownRenderOptions
     {
         ArticleClass = "markdown-body",
-        // A root base element keeps WASM assets stable; qualify native fragments with their page.
+        // Fragment-only links remain native anchors; the root base requires their page route.
         LinkResolver = static (page, destination) => destination.StartsWith('#')
             ? new MarkdownLinkResolution(page.RoutePath + destination, false)
             : null,
@@ -70,12 +70,8 @@ static async Task<ScrollTarget?> ScrollAsync(
     RouteLocation previous,
     ScrollPosition? savedPosition)
 {
-    int fragmentIndex = destination.Path.IndexOf('#', StringComparison.Ordinal);
-    string fragment = fragmentIndex < 0 ? string.Empty : destination.Path[fragmentIndex..];
-    int suffixIndex = destination.Path.IndexOfAny(['?', '#']);
-    string routePath = MarkdownContentCatalog.NormalizeRoute(
-        suffixIndex < 0 ? destination.Path : destination.Path[..suffixIndex]);
-    string? selector = await FragmentScrolling.WaitForHeadingAsync(routePath, fragment);
+    string? selector = await FragmentScrolling.WaitForHeadingAsync(
+        destination.Path, "#" + destination.Fragment);
     return savedPosition.HasValue
         ? new ScrollTarget(savedPosition.Value)
         : selector is null ? null : new ScrollTarget(selector);
