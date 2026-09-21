@@ -17,6 +17,15 @@ const namespaceUris = {
 
 const xlinkNamespaceUri = 'http://www.w3.org/1999/xlink'
 
+// [STA-11]: one complete payload operation per crossing; leave quota/security errors intact
+// for the managed persistence plugin to report. Storage semantics are defined by WHATWG:
+// https://html.spec.whatwg.org/multipage/webstorage.html
+export const stateStorage = {
+    read: (session, key) => (session ? window.sessionStorage : window.localStorage).getItem(key),
+    write: (session, key, value) => (session ? window.sessionStorage : window.localStorage).setItem(key, value),
+    remove: (session, key) => (session ? window.sessionStorage : window.localStorage).removeItem(key)
+}
+
 let nextHandle = 1
 const nodes = new Map()          // handle -> Node
 const nodeHandles = new WeakMap() // Node -> handle
@@ -325,6 +334,434 @@ export async function initialize() {
     const { getAssemblyExports } = await globalThis.getDotnetRuntime(0)
     const exports = await getAssemblyExports('Assimalign.Viu.Browser')
     dispatchEvent = exports.Assimalign.Viu.Browser.BrowserEventDispatch.DispatchBrowserEvent
+    dispatchCustomElements = exports.Assimalign.Viu.Browser.BrowserCustomElementDispatch.Dispatch
+    scheduleCustomElementBatch()
+}
+
+// [CEL-1]–[CEL-8], [RND-IO-1]: one factory and one batched dispatch for every definition.
+// Native lifecycle/slot/event contracts: https://html.spec.whatwg.org/multipage/custom-elements.html
+// and https://dom.spec.whatwg.org/. Parameter interpretation remains entirely in managed code.
+let dispatchCustomElements = null
+let customElementsReady = false
+let customElementBatchScheduled = false
+let nextCustomElementIdentifier = 1
+const customElementDefinitions = new Map()
+const customElementStates = new WeakMap()
+const activeCustomElements = new Map()
+const pendingCustomElements = new Set()
+const customElementStyleDocuments = new WeakMap()
+const customElementLifecycleNames = new Set([
+    'connectedCallback',
+    'disconnectedCallback',
+    'attributeChangedCallback',
+    'adoptedCallback'
+])
+
+function scheduleCustomElementBatch() {
+    if (customElementBatchScheduled || !dispatchCustomElements || pendingCustomElements.size === 0) return
+    customElementBatchScheduled = true
+    enqueueMicrotask(flushCustomElementBatch)
+}
+
+function queueCustomElement(state) {
+    if (!state.definition.enabled) return
+    if (!state.connected && !state.mounted) {
+        pendingCustomElements.delete(state)
+        return
+    }
+    pendingCustomElements.add(state)
+    scheduleCustomElementBatch()
+}
+
+function customElementSlotNames(element) {
+    const names = new Set()
+    const Node = element.ownerDocument.defaultView?.Node || globalThis.Node
+    for (const child of element.childNodes) {
+        if (child.nodeType === Node.TEXT_NODE) {
+            names.add('')
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+            names.add(child.getAttribute('slot') || '')
+        }
+    }
+    return JSON.stringify(Array.from(names))
+}
+
+function disconnectCustomElementSlotObserver(state) {
+    state.slotObserver?.disconnect()
+    state.slotObserver = null
+}
+
+function queueCustomElementSlotChange(state) {
+    if (!state.definition.enabled || !state.connected || !state.mounted) return
+    const slotNames = customElementSlotNames(state.element)
+    if (slotNames === state.slotNames) return
+    state.slotNames = slotNames
+    const queued = state.changes.find(change => change.operation === 6)
+    if (queued) {
+        queued.name = slotNames
+    } else {
+        state.changes.push({ operation: 6, name: slotNames, value: null })
+    }
+    queueCustomElement(state)
+}
+
+function observeCustomElementSlots(state) {
+    disconnectCustomElementSlotObserver(state)
+    if (!state.definition.enabled || !state.definition.useShadowRoot || !state.connected) return
+    const MutationObserver = state.element.ownerDocument.defaultView?.MutationObserver
+    if (!MutationObserver) return
+    state.slotObserver = new MutationObserver(records => {
+        if (records.some(record => record.type === 'childList'
+            ? record.target === state.element
+            : record.target.parentNode === state.element)) {
+            queueCustomElementSlotChange(state)
+        }
+    })
+    state.slotObserver.observe(state.element, {
+        subtree: true,
+        childList: true,
+        attributes: true,
+        attributeFilter: ['slot']
+    })
+}
+
+function validateCustomElementPropertyNames(parameterNames) {
+    const names = new Set()
+    for (const name of parameterNames) {
+        if (typeof name !== 'string' || name.length === 0 || names.has(name)) {
+            throw new Error(`Invalid or duplicate custom-element property '${name}'.`)
+        }
+        if (customElementLifecycleNames.has(name) || name in HTMLElement.prototype) {
+            throw new Error(`Custom-element property '${name}' conflicts with a native element member.`)
+        }
+        names.add(name)
+    }
+}
+
+function flushCustomElementBatch() {
+    customElementBatchScheduled = false
+    const operations = [], definitionIdentifiers = [], elementIdentifiers = [], containerHandles = [], names = [], values = []
+    const reconnect = []
+    const append = (state, operation, name = '', value = null) => {
+        operations.push(operation)
+        definitionIdentifiers.push(state.definition.identifier)
+        elementIdentifiers.push(state.identifier)
+        containerHandles.push(state.containerHandle)
+        names.push(name)
+        values.push(value)
+    }
+    for (const state of Array.from(pendingCustomElements)) {
+        if (!state.definition.enabled) {
+            pendingCustomElements.delete(state)
+            continue
+        }
+        if (state.mounted && (state.disconnectPending || state.adoptedPending || !state.connected)) {
+            pendingCustomElements.delete(state)
+            append(state, 2)
+            if (state.adoptedPending) append(state, 5)
+            state.adoptedPending = false
+            state.disconnectPending = false
+            state.changes.length = 0
+            if (state.connected) reconnect.push(state)
+            continue
+        }
+        if (!customElementsReady) continue
+        pendingCustomElements.delete(state)
+        if (!state.connected) continue
+        if (!state.mounted) {
+            state.root = state.definition.useShadowRoot
+                ? state.element.shadowRoot || state.element.attachShadow({ mode: 'open' })
+                : state.element
+            // Allocate the host first so the returned root handle is the maximum foreign handle.
+            registerNode(state.element)
+            state.containerHandle = registerNode(state.root)
+            state.mounted = true
+            activeCustomElements.set(state.identifier, state)
+            // A same-turn disconnect/reconnect attaches before the old mount is released; release
+            // stops that observer, so every fresh mount establishes observation again here.
+            observeCustomElementSlots(state)
+            if (state.definition.useShadowRoot) applyCustomElementStyles(state)
+            state.slotNames = state.definition.useShadowRoot ? customElementSlotNames(state.element) : '[]'
+            append(state, 1, state.slotNames)
+            if (state.adoptedPending) append(state, 5)
+            state.adoptedPending = false
+            state.disconnectPending = false
+            for (const [attributeName, parameterName] of state.definition.attributes) {
+                append(state, 3, parameterName, state.element.getAttribute(attributeName))
+            }
+            for (const [name, input] of state.inputs) append(state, input.operation, name, input.value)
+        } else {
+            for (const change of state.changes) append(state, change.operation, change.name, change.value)
+        }
+        state.changes.length = 0
+    }
+    if (operations.length > 0) {
+        // Disconnect and reconnect are distinct batches: managed release must finish before a new
+        // connection allocates handles for the same native nodes. Ordinary edits share one batch.
+        dispatchCustomElements(operations, definitionIdentifiers, elementIdentifiers, containerHandles, names, values)
+    }
+    for (const state of reconnect) queueCustomElement(state)
+}
+
+function customElementStylesheetLinks(ownerDocument) {
+    return Array.from(ownerDocument.querySelectorAll('link[rel~="stylesheet"]')).filter(link =>
+        link.hasAttribute('data-viu-stylesheet') || /\.viu\.css(?:[?#]|$)/i.test(link.href))
+}
+
+function customElementStylesheetKey(link) {
+    return `${link.href}\n${link.media}\n${link.disabled}`
+}
+
+function pruneCustomElementStylesheetCache(ownerDocument, cache) {
+    const currentKeys = new Set(customElementStylesheetLinks(ownerDocument).map(customElementStylesheetKey))
+    for (const key of cache.sheets.keys()) {
+        // Removing a cache reference does not disturb a sheet already adopted by a root. Each root
+        // refresh below replaces its own old sheet after the head mutation that made this key stale.
+        if (!currentKeys.has(key)) cache.sheets.delete(key)
+    }
+}
+
+function customElementConstructedSheet(ownerDocument, link, cache) {
+    const key = customElementStylesheetKey(link)
+    let sheet = cache.sheets.get(key)
+    if (!sheet) {
+        // Match the host document's URL, media and disabled state. CSS with relative resources or
+        // imports keeps native <link> loading, which preserves base-URL/import/security semantics.
+        const loadingSheet = (async () => {
+            const response = await ownerDocument.defaultView.fetch(link.href)
+            if (!response.ok) throw new Error(`stylesheet returned ${response.status}`)
+            const text = await response.text()
+            if (/@import\b/i.test(text) || /url\(\s*['"]?(?![a-z][a-z\d+.-]*:|\/\/|#)/i.test(text)) {
+                throw new Error('stylesheet requires native URL resolution')
+            }
+            const constructed = new ownerDocument.defaultView.CSSStyleSheet({ media: link.media, disabled: link.disabled })
+            await constructed.replace(text)
+            return constructed
+        })()
+        sheet = loadingSheet.catch(error => {
+            if (cache.sheets.get(key) === sheet) cache.sheets.delete(key)
+            throw error
+        })
+        cache.sheets.set(key, sheet)
+    }
+    return sheet
+}
+
+function detachCustomElementStyles(state) {
+    state.styleVersion++
+    if (state.styleDocument) {
+        const cache = customElementStyleDocuments.get(state.styleDocument)
+        cache?.elements.delete(state)
+        if (cache && cache.elements.size === 0) {
+            cache.observer?.disconnect()
+            cache.observer = null
+        }
+    }
+    if (state.root && state.styleSheets.length > 0) {
+        state.root.adoptedStyleSheets = state.root.adoptedStyleSheets.filter(sheet => !state.styleSheets.includes(sheet))
+    }
+    for (const link of state.styleLinks) link.remove()
+    state.styleLinks = []
+    state.styleSheets = []
+    state.styleDocument = null
+}
+
+function applyCustomElementStyles(state) {
+    detachCustomElementStyles(state)
+    const ownerDocument = state.element.ownerDocument
+    const links = customElementStylesheetLinks(ownerDocument)
+    state.styleDocument = ownerDocument
+    const version = state.styleVersion
+    let cache = customElementStyleDocuments.get(ownerDocument)
+    if (!cache) {
+        cache = { sheets: new Map(), elements: new Set(), observer: null }
+        customElementStyleDocuments.set(ownerDocument, cache)
+    }
+    // The last-root observer is deliberately stopped. Prune again on attachment so href churn
+    // while no roots were active cannot retain promises for styles no longer present in the head.
+    pruneCustomElementStylesheetCache(ownerDocument, cache)
+    cache.elements.add(state)
+    if (!cache.observer && ownerDocument.head && ownerDocument.defaultView?.MutationObserver) {
+        cache.observer = new ownerDocument.defaultView.MutationObserver(() => {
+            pruneCustomElementStylesheetCache(ownerDocument, cache)
+            for (const element of Array.from(cache.elements)) applyCustomElementStyles(element)
+        })
+        cache.observer.observe(ownerDocument.head, {
+            subtree: true, childList: true, attributes: true,
+            attributeFilter: ['href', 'rel', 'media', 'disabled', 'data-viu-stylesheet']
+        })
+    }
+    // A clone also covers loading time, cross-origin restrictions and browsers without constructed
+    // sheets. Clones are host-owned, never renderer nodes, and are removed deterministically.
+    for (const link of links) {
+        const clone = link.cloneNode(false)
+        clone.removeAttribute('id')
+        clone.href = link.href
+        state.root.appendChild(clone)
+        state.styleLinks.push(clone)
+    }
+    if (!('adoptedStyleSheets' in state.root)
+        || !ownerDocument.defaultView?.CSSStyleSheet?.prototype.replace
+        || typeof globalThis.WeakRef !== 'function') return
+    const target = new globalThis.WeakRef(state)
+    Promise.all(links.map(link => customElementConstructedSheet(ownerDocument, link, cache))).then(sheets => {
+        const current = target.deref()
+        if (!current || !current.mounted || current.styleVersion !== version) return
+        current.root.adoptedStyleSheets = [...current.root.adoptedStyleSheets, ...sheets]
+        current.styleSheets = sheets
+        for (const link of current.styleLinks) link.remove()
+        current.styleLinks = []
+    }).catch(() => { /* Native link clones preserve loading when sheet construction is unavailable. */ })
+}
+
+export const customElementsBridge = {
+    define: (definitionIdentifier, tagName, useShadowRoot, parameterNames, attributeNames) => {
+        if (customElements.get(tagName) || customElementDefinitions.has(definitionIdentifier)) {
+            throw new Error(`Viu custom element '${tagName}' is already defined.`)
+        }
+        validateCustomElementPropertyNames(parameterNames)
+        const definition = { identifier: definitionIdentifier, enabled: true, useShadowRoot, attributes: new Map() }
+        for (let index = 0; index < parameterNames.length; index++) {
+            if (attributeNames[index]) definition.attributes.set(attributeNames[index], parameterNames[index])
+        }
+        customElements.define(tagName, class extends HTMLElement {
+            static get observedAttributes() { return Array.from(definition.attributes.keys()) }
+
+            constructor() {
+                super()
+                const state = {
+                    identifier: nextCustomElementIdentifier++, definition, element: this, connected: false, mounted: false,
+                    disconnectPending: false, adoptedPending: false, containerHandle: 0, root: null,
+                    properties: new Map(), inputs: new Map(), changes: [], upgradeProperties: new Set(),
+                    styleVersion: 0, styleLinks: [], styleSheets: [], styleDocument: null,
+                    slotNames: '[]', slotObserver: null
+                }
+                customElementStates.set(this, state)
+                for (const name of parameterNames) {
+                    // Replay own values set while the parser-created element was not yet upgraded.
+                    const previous = Object.getOwnPropertyDescriptor(this, name)
+                    if (previous && 'value' in previous) {
+                        state.properties.set(name, previous.value)
+                        state.inputs.set(name, { operation: 4, value: previous.value })
+                        state.upgradeProperties.add(name)
+                    }
+                    Object.defineProperty(this, name, {
+                        enumerable: true, configurable: true,
+                        get: () => state.properties.get(name),
+                        set: value => {
+                            if (!definition.enabled) return
+                            state.properties.set(name, value)
+                            state.inputs.set(name, { operation: 4, value })
+                            if (state.mounted) state.changes.push({ operation: 4, name, value })
+                            queueCustomElement(state)
+                        }
+                    })
+                }
+            }
+
+            connectedCallback() {
+                const state = customElementStates.get(this)
+                state.connected = this.isConnected
+                state.upgradeProperties.clear()
+                observeCustomElementSlots(state)
+                queueCustomElement(state)
+            }
+
+            disconnectedCallback() {
+                const state = customElementStates.get(this)
+                state.connected = false
+                state.disconnectPending = state.mounted
+                disconnectCustomElementSlotObserver(state)
+                queueCustomElement(state)
+            }
+
+            attributeChangedCallback(attributeName, previousValue, value) {
+                if (previousValue === value || !definition.enabled) return
+                const state = customElementStates.get(this)
+                const name = definition.attributes.get(attributeName)
+                // Upgrade-time own properties take precedence over the initial HTML attributes.
+                if (state.upgradeProperties.has(name)) return
+                state.inputs.set(name, { operation: 3, value })
+                if (state.mounted) state.changes.push({ operation: 3, name, value })
+                queueCustomElement(state)
+            }
+
+            adoptedCallback() {
+                const state = customElementStates.get(this)
+                state.adoptedPending = true
+                observeCustomElementSlots(state)
+                queueCustomElement(state)
+            }
+        })
+        customElementDefinitions.set(definitionIdentifier, definition)
+    },
+
+    setReady: ready => {
+        customElementsReady = ready
+        scheduleCustomElementBatch()
+    },
+
+    updateProperties: (elementIdentifier, names, values) => {
+        const state = activeCustomElements.get(elementIdentifier)
+        if (!state) return
+        for (let index = 0; index < names.length; index++) {
+            const name = names[index]
+            state.properties.set(name, values[index])
+            // Every resolved value refreshes its getter. Validation also canonicalizes an authored
+            // property input without changing an attribute or default into a property input.
+            const input = state.inputs.get(name)
+            if (input?.operation === 4) input.value = values[index]
+        }
+    },
+
+    dispatchEvent: (elementIdentifier, name, argumentsList) => {
+        const state = activeCustomElements.get(elementIdentifier)
+        if (!state || !state.connected) return
+        const Event = state.element.ownerDocument.defaultView?.CustomEvent || CustomEvent
+        state.element.dispatchEvent(new Event(name, { detail: argumentsList, bubbles: true, composed: true }))
+    },
+
+    release: elementIdentifier => {
+        const state = activeCustomElements.get(elementIdentifier)
+        if (!state) return []
+        const released = []
+        disconnectCustomElementSlotObserver(state)
+        detachCustomElementStyles(state)
+        if (state.root !== state.element) {
+            // ShadowRoot is a DocumentFragment; the ordinary element-only releaseSubtree cannot
+            // traverse it. Never traverse the host's authored light-DOM children during teardown.
+            const walker = state.element.ownerDocument.createTreeWalker(state.root, NodeFilter.SHOW_ALL)
+            let current = walker.nextNode()
+            while (current) {
+                releaseNodeHandle(current, released)
+                current = walker.nextNode()
+            }
+            releaseNodeHandle(state.root, released)
+        }
+        releaseNodeHandle(state.element, released)
+        state.mounted = false
+        state.containerHandle = 0
+        state.changes.length = 0
+        activeCustomElements.delete(elementIdentifier)
+        pendingCustomElements.delete(state)
+        return released
+    },
+
+    undefine: definitionIdentifier => {
+        const definition = customElementDefinitions.get(definitionIdentifier)
+        if (!definition) return
+        definition.enabled = false
+        customElementDefinitions.delete(definitionIdentifier)
+        for (const state of pendingCustomElements) {
+            if (state.definition === definition) {
+                disconnectCustomElementSlotObserver(state)
+                pendingCustomElements.delete(state)
+            }
+        }
+    },
+
+    warn: message => console.warn('[Viu warn] ' + message),
+    getRegistrySizes: () => [activeCustomElements.size, pendingCustomElements.size]
 }
 
 export const dom = {

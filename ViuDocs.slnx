@@ -3,4 +3,8 @@
     <Project Path="app/Assimalign.Viu.Docs.Web/ViuDocs.Server.csproj" />
     <Project Path="app/Assimalign.Viu.Docs.App/ViuDocs.Client.csproj" />
   </Folder>
+  <Folder Name="/packages/Assimalign.Viu.Docs/">
+    <Project Path="packages/Assimalign.Viu.Docs/src/Assimalign.Viu.Docs.csproj" />
+    <Project Path="packages/Assimalign.Viu.Docs/test/Assimalign.Viu.Docs.Tests.csproj" />
+  </Folder>
 </Solution>

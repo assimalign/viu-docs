@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -13,18 +12,11 @@ using ViuDocs.Server;
 
 IReadOnlyList<ServerAddress> addresses = ServerAddressResolver.Resolve(
     Environment.GetEnvironmentVariable("ASPNETCORE_URLS"));
-string clientOutputPath = ResolveClientOutputPath();
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder();
 builder.AddViuApplication(options =>
 {
-    options.ContentRootPath = Path.Combine(clientOutputPath, "wwwroot");
-    options.RuntimeManifestPath = Path.Combine(
-        clientOutputPath,
-        "ViuDocs.staticwebassets.runtime.json");
-    options.EndpointsManifestPath = Path.Combine(
-        clientOutputPath,
-        "ViuDocs.staticwebassets.endpoints.json");
+    options.UseClientOutput("ViuDocs");
     options.EnableSpaFallback = true;
 });
 builder.Server.UseServer(listener =>
@@ -66,26 +58,6 @@ try
 finally
 {
     await server.StopAsync(CancellationToken.None).ConfigureAwait(false);
-}
-
-static string ResolveClientOutputPath()
-{
-    const string configurationKey = "ViuDocs.ClientOutputPath";
-    string? configuredPath = AppContext.GetData(configurationKey) as string;
-    if (string.IsNullOrWhiteSpace(configuredPath))
-    {
-        throw new InvalidOperationException(
-            $"The runtime configuration property '{configurationKey}' is missing.");
-    }
-
-    string outputPath = Path.GetFullPath(configuredPath);
-    if (!Directory.Exists(outputPath))
-    {
-        throw new DirectoryNotFoundException(
-            $"The Viu client output directory '{outputPath}' does not exist.");
-    }
-
-    return outputPath;
 }
 
 static async Task WaitForShutdownAsync(CancellationToken cancellationToken)

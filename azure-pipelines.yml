@@ -1,0 +1,176 @@
+parameters:
+  - name: githubServiceConnection
+    displayName: GitHub service connection
+    type: string
+    default: github-assimalign
+
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - docs/**
+      - packages/**
+      - app/**
+
+resources:
+  repositories:
+    - repository: viu
+      type: github
+      endpoint: ${{ parameters.githubServiceConnection }}
+      name: assimalign/viu
+    - repository: viuPlatforms
+      type: github
+      endpoint: ${{ parameters.githubServiceConnection }}
+      name: assimalign/viu-platforms
+    - repository: cohesion
+      type: github
+      endpoint: ${{ parameters.githubServiceConnection }}
+      name: assimalign/cohesion
+    - repository: frontend
+      type: git
+      name: Core/aaln-core-frontend
+
+variables:
+  buildConfiguration: Release
+  AalnPackageFeed: aaln-core
+  viuRef: 5f1904e3971da2948bea00ace3d9a2e099804c40
+  viuPlatformsRef: 48a7ac64f01179ff202c95c535fa8e3dd5c94f60
+  cohesionRef: 82a45439f470520f90e96c5d8a40c26265d2df05
+  frontendRef: 3c5172e31a526ae14f5cc317afaecd98224aaaed
+
+stages:
+  - stage: Bootstrap
+    displayName: Bootstrap sibling package feeds
+    jobs:
+      - job: Bootstrap
+        pool:
+          vmImage: windows-latest
+        steps:
+          - checkout: viu
+            fetchDepth: 0
+            path: s/assimalign/viu
+          - checkout: viuPlatforms
+            fetchDepth: 0
+            path: s/assimalign/viu-platforms
+          - checkout: cohesion
+            fetchDepth: 0
+            path: s/assimalign/cohesion
+          - checkout: frontend
+            fetchDepth: 0
+            path: s/assimalign-core/aaln-core-frontend
+          - task: UseDotNet@2
+            inputs:
+              packageType: sdk
+              version: 10.0.401
+          - powershell: dotnet workload install wasm-tools
+            displayName: Install WebAssembly workload
+          - powershell: |
+              git -C '$(Pipeline.Workspace)\s\assimalign\viu' checkout '$(viuRef)'
+              & '$(Pipeline.Workspace)\s\assimalign\viu\scripts\Install-Local.ps1'
+              git -C '$(Pipeline.Workspace)\s\assimalign\cohesion' checkout '$(cohesionRef)'
+              & '$(Pipeline.Workspace)\s\assimalign\cohesion\installer\scripts\Install-Local.ps1'
+              git -C '$(Pipeline.Workspace)\s\assimalign\viu-platforms' checkout '$(viuPlatformsRef)'
+              & '$(Pipeline.Workspace)\s\assimalign\viu-platforms\scripts\Install-Local.ps1'
+              git -C '$(Pipeline.Workspace)\s\assimalign-core\aaln-core-frontend' checkout '$(frontendRef)'
+              & '$(Pipeline.Workspace)\s\assimalign-core\aaln-core-frontend\scripts\Install-Local.ps1'
+            displayName: Reconstruct pinned sibling feeds
+          - publish: $(Pipeline.Workspace)/s/assimalign/viu/_out/packages
+            artifact: viu-packages
+          - publish: $(Pipeline.Workspace)/s/assimalign/cohesion/_out/packages
+            artifact: cohesion-packages
+          - publish: $(Pipeline.Workspace)/s/assimalign/viu-platforms/_out/packages
+            artifact: viu-platforms-packages
+          - publish: $(Pipeline.Workspace)/s/assimalign-core/aaln-core-frontend/_out/packages
+            artifact: frontend-packages
+
+  - stage: Build
+    dependsOn: Bootstrap
+    jobs:
+      - job: Build
+        pool:
+          vmImage: windows-latest
+        steps:
+          - checkout: self
+            path: s/assimalign/viu-docs
+          - task: UseDotNet@2
+            inputs:
+              packageType: sdk
+              version: 10.0.401
+          - powershell: dotnet workload install wasm-tools
+            displayName: Install WebAssembly workload
+          - download: current
+            artifact: viu-packages
+            path: $(Pipeline.Workspace)/s/assimalign/viu/_out/packages
+          - download: current
+            artifact: cohesion-packages
+            path: $(Pipeline.Workspace)/s/assimalign/cohesion/_out/packages
+          - download: current
+            artifact: viu-platforms-packages
+            path: $(Pipeline.Workspace)/s/assimalign/viu-platforms/_out/packages
+          - download: current
+            artifact: frontend-packages
+            path: $(Pipeline.Workspace)/s/assimalign-core/aaln-core-frontend/_out/packages
+          - script: dotnet build ViuDocs.slnx -c $(buildConfiguration)
+            workingDirectory: $(Pipeline.Workspace)/s/assimalign/viu-docs
+            displayName: Build
+          - publish: $(Pipeline.Workspace)/s/assimalign/viu-docs
+            artifact: built-source
+
+  - stage: Test
+    dependsOn: Build
+    jobs:
+      - job: Test
+        pool:
+          vmImage: windows-latest
+        steps:
+          - task: UseDotNet@2
+            inputs:
+              packageType: sdk
+              version: 10.0.401
+          - download: current
+            artifact: built-source
+            path: $(Pipeline.Workspace)/built-source
+          - script: dotnet test ViuDocs.slnx -c $(buildConfiguration) --no-build
+            workingDirectory: $(Pipeline.Workspace)/built-source
+            displayName: Test
+
+  - stage: Pack
+    dependsOn: Test
+    jobs:
+      - job: Pack
+        pool:
+          vmImage: windows-latest
+        steps:
+          - task: UseDotNet@2
+            inputs:
+              packageType: sdk
+              version: 10.0.401
+          - download: current
+            artifact: built-source
+            path: $(Pipeline.Workspace)/built-source
+          - script: dotnet pack packages/Assimalign.Viu.Docs/src -c $(buildConfiguration) --no-build -o $(Build.ArtifactStagingDirectory)/packages
+            workingDirectory: $(Pipeline.Workspace)/built-source
+            displayName: Pack
+          - publish: $(Build.ArtifactStagingDirectory)/packages
+            artifact: packages
+
+  - stage: Push
+    dependsOn: Pack
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - job: Push
+        pool:
+          vmImage: windows-latest
+        steps:
+          - task: UseDotNet@2
+            inputs:
+              packageType: sdk
+              version: 10.0.401
+          - download: current
+            artifact: packages
+          - task: NuGetAuthenticate@1
+          - powershell: |
+              dotnet nuget push '$(Pipeline.Workspace)\packages\*.nupkg' --source 'https://pkgs.dev.azure.com/assimalign/Core/_packaging/$(AalnPackageFeed)/nuget/v3/index.json' --api-key AzureArtifacts --skip-duplicate
+            displayName: Push packages

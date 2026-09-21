@@ -1,11 +1,11 @@
 {
   "sdk": {
-    "version": "10.0.100",
+    "version": "10.0.401",
     "rollForward": "latestFeature"
   },
   "msbuild-sdks": {
-    "Assimalign.Cohesion.Sdk": "10.0.0-beta.1",
-    "Assimalign.Cohesion.Sdk.Web": "10.0.0-beta.1",
+    "Assimalign.Cohesion.Sdk": "10.0.1-preview.3.local",
+    "Assimalign.Cohesion.Sdk.Web": "10.0.1-preview.3.local",
     "Assimalign.Viu.Sdk": "10.0.0-beta.12",
     "Assimalign.Viu.Sdk.Browser": "10.0.0-beta.12"
   }
