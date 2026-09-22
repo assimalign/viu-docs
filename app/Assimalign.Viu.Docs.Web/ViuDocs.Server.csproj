@@ -8,16 +8,13 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <LangVersion>preview</LangVersion>
-    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">$(NETCoreSdkRuntimeIdentifier)</RuntimeIdentifier>
-    <SelfContained>true</SelfContained>
     <GenerateRequiresPreviewFeaturesAttribute>true</GenerateRequiresPreviewFeaturesAttribute>
     <EnablePreviewFeatures>true</EnablePreviewFeatures>
     <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
-    <DisableTransitiveFrameworkReferenceDownloads>true</DisableTransitiveFrameworkReferenceDownloads>
-    <ViuClientProject>..\Assimalign.Viu.Docs.App\ViuDocs.Client.csproj</ViuClientProject>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Assimalign.Cohesion.Viu.Server" Version="10.0.0-beta.5" />
+    <ViuClientReference Include="..\Assimalign.Viu.Docs.App\ViuDocs.Client.csproj" />
   </ItemGroup>
 </Project>
