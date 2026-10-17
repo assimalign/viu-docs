@@ -52,5 +52,5 @@ public sealed class ViuDocsMicroFrontend : DocumentationMicroFrontend
     private static string InformationalVersion() =>
         typeof(ViuDocsMicroFrontend).Assembly
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
-            .InformationalVersion ?? "1.0.0-preview.1";
+            .InformationalVersion ?? "1.0.0-preview.2";
 }

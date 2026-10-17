@@ -7,41 +7,52 @@ The production `docs.assimalign.com` landing zone consumes the package and suppl
 ## Repository layout
 
 ```text
+global.json                                .NET, Cohesion SDK, and Viu SDK selection
+NuGet.config                               GitHub Packages feed and local cache
+Directory.Build.props                      Viu, Cohesion Viu, and shared frontend package pins
 docs/                                      45 authored Markdown pages
 packages/Assimalign.Viu.Docs/src/          host-neutral micro-frontend package
 packages/Assimalign.Viu.Docs/test/         package contract tests
+packages/Assimalign.Viu.Docs/build/        project-reference content registration
 packages/Assimalign.Viu.Docs/docs/         package overview and design
 app/Assimalign.Viu.Docs.App/               thin shared-shell browser client
 app/Assimalign.Viu.Docs.Web/               plain Cohesion Web host
-azure-pipelines.yml                        Build, Test, Pack, and Push pipeline
+azure-pipelines.yml                        Build, test, pack, and Push pipeline
 ```
 
 ## Version line
 
-- Viu SDK and router: `10.0.0-beta.12`
-- `Assimalign.Cohesion.Viu.*`: `10.0.0-beta.5`
-- Cohesion SDK: `10.0.1-preview.3.local`
-- `Assimalign.Frontend.*`: `1.0.0-preview.1`
-- `Assimalign.Viu.Docs`: `1.0.0-preview.1`
+- Viu SDK and router: `10.0.0-preview.0.ci.4`
+- `Assimalign.Cohesion.Viu.*`: `10.0.0-preview.0.ci.5`
+- Cohesion SDK: `10.0.0-preview.0.ci.21`
+- `Assimalign.Frontend.*`: `1.0.0-preview.1.ci.1`
+- `Assimalign.Viu.Docs`: `1.0.0-preview.2`
 
 ## Local development
 
-The repository restores only from explicit sources in `NuGet.config`. Before building, produce the
-sibling package feeds without changing or repacking them from this repository:
+Every `Assimalign.*` package restores from the Assimalign GitHub Packages feed
+(`https://nuget.pkg.github.com/assimalign/index.json`); no sibling checkout has to be packed first.
+`NuGet.config` maps `Assimalign.Viu.*`, `Assimalign.Cohesion.*`, and `Assimalign.Frontend.*` to that
+feed and everything else to NuGet.org. Restored packages stay in `.nuget/packages`.
+
+The pins move together because each build must depend on the same Viu and Cohesion builds:
+
+- the `Assimalign.Viu.Sdk` entry in `global.json` selects the Viu SDK, and `Directory.Build.props`
+  reads it as `ViuVersion` for every Viu package reference (keep `Assimalign.Viu.Sdk.Browser` equal);
+- the `Assimalign.Cohesion.Sdk` and `Assimalign.Cohesion.Sdk.Web` entries in `global.json` select
+  the Cohesion build that the Cohesion Viu build pins exactly;
+- `CohesionViuVersion` in `Directory.Build.props` selects the viu-platforms build;
+- `FrontendVersion` in `Directory.Build.props` selects the aaln-core-frontend build, published by
+  that repository's Azure pipeline as `1.0.0-preview.1.ci.<run>`.
+
+CI pins are temporary: viu and viu-platforms keep only their newest 20 `main` builds. GitHub Packages
+requires a personal access token (classic) with `read:packages`, and the shared frontend packages
+are private to the `assimalign` organization. Never write the token to `NuGet.config`; supply it
+from the environment:
 
 ```powershell
-pwsh C:\Source\repos\assimalign\viu\scripts\Install-Local.ps1
-pwsh C:\Source\repos\assimalign\cohesion\scripts\Install-Local.ps1
-pwsh C:\Source\repos\assimalign\viu-platforms\scripts\Install-Local.ps1
-pwsh C:\Source\repos\assimalign-core\aaln-core-frontend\scripts\Install-Local.ps1
+$env:NuGetPackageSourceCredentials_assimalign = "Username=<github-user>;Password=$(gh auth token);ValidAuthenticationTypes=Basic"
 ```
-
-The configured feeds are:
-
-- `C:\Source\repos\assimalign\viu\_out\packages`
-- `C:\Source\repos\assimalign\viu-platforms\_out\packages`
-- `C:\Source\repos\assimalign\cohesion\_out\packages`
-- `C:\Source\repos\assimalign-core\aaln-core-frontend\_out\packages`
 
 Build and test everything from the repository root:
 
@@ -51,23 +62,40 @@ dotnet test ViuDocs.slnx -c Release --no-build
 dotnet run --project app/Assimalign.Viu.Docs.Web
 ```
 
-The Web launch profile listens on `http://127.0.0.1:5179`. The client may also be run directly
-because it references `Assimalign.Cohesion.Viu.DevServer` `10.0.0-beta.5`.
+The Web host declares the client with a `ViuClientReference` item and listens on
+`http://127.0.0.1:5179`. The client may also be run directly because it references
+`Assimalign.Cohesion.Viu.DevServer`. That CI package publishes its tools for the packing agent's
+runtime identifier (x64), so on Windows ARM64 run the DevServer under
+`C:\Program Files\dotnet\x64\dotnet.exe`.
 
 ## The `Assimalign.Viu.Docs` package
 
 `ViuDocsMicroFrontend` derives from the shared `DocumentationMicroFrontend` contract. The package
 owns its generated catalog, HTTP source, renderer, component registration, navigation, and `/viu`
-route subtree. Hosts compose it through `AddMicroFrontends`; they must not call `AddMarkdownContent`.
+route subtree. Hosts compose it through `builder.Services.AddMicroFrontends`; they must not call
+`AddMarkdownContent`.
 
 The generated routes are `/viu`, `/viu/guide`, `/viu/guide/quick-start`, and the remaining catalog
 paths below `/viu`. Markdown remains outside the WebAssembly payload and is carried as transitive
-static content at `/_content/Assimalign.Viu.Docs/docs/**`.
+static content at `/_content/Assimalign.Viu.Docs/docs/<asset>.md`. Each asset name is the Viu
+Markdown build's default hashed name: the first twelve hex digits of the SHA-256 of the
+forward-slash source path. The package build hashes the packed content; a host that uses a project
+reference instead imports `packages/Assimalign.Viu.Docs/build/Assimalign.Viu.Docs.ProjectReference.props`
+to link the same names.
 
-A browser host supplies an `HttpClient` based at its document address:
+A browser host supplies an `HttpClient` based at its document address and registers everything in
+`builder.Services`, then installs the router after building:
 
 ```csharp
-registrations.Add(new ViuDocsMicroFrontend(httpClient));
+builder.Services.AddComponents(GeneratedViuComponents.Register);
+builder.Services.AddFrontendComponents();
+builder.Services.AddRouting(routing => routing.Routes.Add(landingRoute));
+builder.Services.AddMicroFrontends(microFrontends => microFrontends
+    .UseShell(ComponentReference.ForName("AppShell"))
+    .Add(new ViuDocsMicroFrontend(httpClient)));
+
+await using ViuApplication application = builder.Build();
+await application.UseRouter().RunAsync();
 ```
 
 The package is AOT-compatible, uses explicit generated component registration, contains no custom

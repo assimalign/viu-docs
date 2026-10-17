@@ -4,7 +4,7 @@
     <PackageId>Assimalign.Viu.Docs</PackageId>
     <AssemblyName>Assimalign.Viu.Docs</AssemblyName>
     <RootNamespace>Assimalign.Viu.Docs</RootNamespace>
-    <Version>1.0.0-preview.1</Version>
+    <Version>1.0.0-preview.2</Version>
     <IsPackable>true</IsPackable>
     <IsAotCompatible>true</IsAotCompatible>
     <Nullable>enable</Nullable>
@@ -28,22 +28,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Assimalign.Frontend.MicroFrontends" Version="1.0.0-preview.1" />
-    <PackageReference Include="Assimalign.Cohesion.Viu.Markdown" Version="10.0.0-beta.5" />
+    <PackageReference Include="Assimalign.Frontend.MicroFrontends" Version="$(FrontendVersion)" />
+    <PackageReference Include="Assimalign.Cohesion.Viu.Markdown" Version="$(CohesionViuVersion)" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="..\docs\OVERVIEW.md" Pack="true" PackagePath="docs\OVERVIEW.md" />
-  </ItemGroup>
-
-  <!-- Project references do not import the nupkg's generated buildTransitive props. Keep the
-       development host package-owned while preserving the package's canonical content layout. -->
-  <ItemGroup>
-    <Content Include="..\..\..\docs\**\*.md"
-             Condition="'$(_IsPacking)' != 'true'"
-             Link="wwwroot\_content\Assimalign.Viu.Docs\docs\%(RecursiveDir)%(Filename)%(Extension)"
-             CopyToOutputDirectory="PreserveNewest"
-             CopyToPublishDirectory="PreserveNewest"
-             Pack="false" />
   </ItemGroup>
 </Project>

@@ -1,4 +1,4 @@
-<Project Sdk="Assimalign.Viu.Sdk.Browser/10.0.0-beta.12">
+<Project Sdk="Assimalign.Viu.Sdk.Browser">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
@@ -20,12 +20,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\packages\Assimalign.Viu.Docs\src\Assimalign.Viu.Docs.csproj" />
-    <PackageReference Include="Assimalign.Frontend.Components" Version="1.0.0-preview.1" />
-    <PackageReference Include="Assimalign.Cohesion.Viu.Hosting" Version="10.0.0-beta.5" />
-    <PackageReference Include="Assimalign.Cohesion.Viu.Hosting.Browser" Version="10.0.0-beta.5" />
-    <PackageReference Include="Assimalign.Cohesion.Viu.DevServer" Version="10.0.0-beta.5" />
-    <PackageReference Include="Assimalign.Viu.Browser.Router" Version="10.0.0-beta.12" />
-    <PackageReference Include="Assimalign.Viu.Router" Version="10.0.0-beta.12" />
+    <PackageReference Include="Assimalign.Frontend.Components" Version="$(FrontendVersion)" />
+    <PackageReference Include="Assimalign.Cohesion.Viu.Hosting" Version="$(CohesionViuVersion)" />
+    <PackageReference Include="Assimalign.Cohesion.Viu.Hosting.Browser" Version="$(CohesionViuVersion)" />
+    <PackageReference Include="Assimalign.Cohesion.Viu.Routing" Version="$(CohesionViuVersion)" />
+    <PackageReference Include="Assimalign.Cohesion.Viu.DevServer" Version="$(CohesionViuVersion)" />
+    <PackageReference Include="Assimalign.Viu.Router" Version="$(ViuVersion)" />
   </ItemGroup>
 
   <ItemGroup>
@@ -33,4 +33,6 @@
                                       Pattern="*.js"
                                       Expression="#[.{fingerprint}]!" />
   </ItemGroup>
+
+  <Import Project="..\..\packages\Assimalign.Viu.Docs\build\Assimalign.Viu.Docs.ProjectReference.props" />
 </Project>

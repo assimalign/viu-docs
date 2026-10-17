@@ -1,9 +1,3 @@
-parameters:
-  - name: githubServiceConnection
-    displayName: GitHub service connection
-    type: string
-    default: github-assimalign
-
 trigger:
   branches:
     include:
@@ -14,145 +8,47 @@ trigger:
       - packages/**
       - app/**
 
-resources:
-  repositories:
-    - repository: viu
-      type: github
-      endpoint: ${{ parameters.githubServiceConnection }}
-      name: assimalign/viu
-    - repository: viuPlatforms
-      type: github
-      endpoint: ${{ parameters.githubServiceConnection }}
-      name: assimalign/viu-platforms
-    - repository: cohesion
-      type: github
-      endpoint: ${{ parameters.githubServiceConnection }}
-      name: assimalign/cohesion
-    - repository: frontend
-      type: git
-      name: Core/aaln-core-frontend
-
+# Every Assimalign.* package restores from the Assimalign GitHub Packages feed at the pins in
+# global.json and Directory.Build.props. The aaln-core-frontend-github-packages variable group holds
+# GITHUB_PACKAGES_TOKEN, a personal access token (classic) with read:packages; NuGet reads it through
+# NuGetPackageSourceCredentials_assimalign, so NuGet.config never contains it.
 variables:
-  buildConfiguration: Release
-  AalnPackageFeed: aaln-core
-  viuRef: 5f1904e3971da2948bea00ace3d9a2e099804c40
-  viuPlatformsRef: 48a7ac64f01179ff202c95c535fa8e3dd5c94f60
-  cohesionRef: 82a45439f470520f90e96c5d8a40c26265d2df05
-  frontendRef: 3c5172e31a526ae14f5cc317afaecd98224aaaed
+  - group: aaln-core-frontend-github-packages
+  - name: buildConfiguration
+    value: Release
+  - name: AalnPackageFeed
+    value: aaln-core
 
 stages:
-  - stage: Bootstrap
-    displayName: Bootstrap sibling package feeds
-    jobs:
-      - job: Bootstrap
-        pool:
-          vmImage: windows-latest
-        steps:
-          - checkout: viu
-            fetchDepth: 0
-            path: s/assimalign/viu
-          - checkout: viuPlatforms
-            fetchDepth: 0
-            path: s/assimalign/viu-platforms
-          - checkout: cohesion
-            fetchDepth: 0
-            path: s/assimalign/cohesion
-          - checkout: frontend
-            fetchDepth: 0
-            path: s/assimalign-core/aaln-core-frontend
-          - task: UseDotNet@2
-            inputs:
-              packageType: sdk
-              version: 10.0.401
-          - powershell: dotnet workload install wasm-tools
-            displayName: Install WebAssembly workload
-          - powershell: |
-              git -C '$(Pipeline.Workspace)\s\assimalign\viu' checkout '$(viuRef)'
-              & '$(Pipeline.Workspace)\s\assimalign\viu\scripts\Install-Local.ps1'
-              git -C '$(Pipeline.Workspace)\s\assimalign\cohesion' checkout '$(cohesionRef)'
-              & '$(Pipeline.Workspace)\s\assimalign\cohesion\installer\scripts\Install-Local.ps1'
-              git -C '$(Pipeline.Workspace)\s\assimalign\viu-platforms' checkout '$(viuPlatformsRef)'
-              & '$(Pipeline.Workspace)\s\assimalign\viu-platforms\scripts\Install-Local.ps1'
-              git -C '$(Pipeline.Workspace)\s\assimalign-core\aaln-core-frontend' checkout '$(frontendRef)'
-              & '$(Pipeline.Workspace)\s\assimalign-core\aaln-core-frontend\scripts\Install-Local.ps1'
-            displayName: Reconstruct pinned sibling feeds
-          - publish: $(Pipeline.Workspace)/s/assimalign/viu/_out/packages
-            artifact: viu-packages
-          - publish: $(Pipeline.Workspace)/s/assimalign/cohesion/_out/packages
-            artifact: cohesion-packages
-          - publish: $(Pipeline.Workspace)/s/assimalign/viu-platforms/_out/packages
-            artifact: viu-platforms-packages
-          - publish: $(Pipeline.Workspace)/s/assimalign-core/aaln-core-frontend/_out/packages
-            artifact: frontend-packages
-
-  - stage: Build
-    dependsOn: Bootstrap
-    jobs:
-      - job: Build
-        pool:
-          vmImage: windows-latest
-        steps:
-          - checkout: self
-            path: s/assimalign/viu-docs
-          - task: UseDotNet@2
-            inputs:
-              packageType: sdk
-              version: 10.0.401
-          - powershell: dotnet workload install wasm-tools
-            displayName: Install WebAssembly workload
-          - download: current
-            artifact: viu-packages
-            path: $(Pipeline.Workspace)/s/assimalign/viu/_out/packages
-          - download: current
-            artifact: cohesion-packages
-            path: $(Pipeline.Workspace)/s/assimalign/cohesion/_out/packages
-          - download: current
-            artifact: viu-platforms-packages
-            path: $(Pipeline.Workspace)/s/assimalign/viu-platforms/_out/packages
-          - download: current
-            artifact: frontend-packages
-            path: $(Pipeline.Workspace)/s/assimalign-core/aaln-core-frontend/_out/packages
-          - script: dotnet build ViuDocs.slnx -c $(buildConfiguration)
-            workingDirectory: $(Pipeline.Workspace)/s/assimalign/viu-docs
-            displayName: Build
-          - publish: $(Pipeline.Workspace)/s/assimalign/viu-docs
-            artifact: built-source
-
-  - stage: Test
-    dependsOn: Build
-    jobs:
-      - job: Test
-        pool:
-          vmImage: windows-latest
-        steps:
-          - task: UseDotNet@2
-            inputs:
-              packageType: sdk
-              version: 10.0.401
-          - download: current
-            artifact: built-source
-            path: $(Pipeline.Workspace)/built-source
-          - script: dotnet test ViuDocs.slnx -c $(buildConfiguration) --no-build
-            workingDirectory: $(Pipeline.Workspace)/built-source
-            displayName: Test
-
   - stage: Pack
-    dependsOn: Test
+    displayName: Build, test, and pack
     jobs:
       - job: Pack
         pool:
           vmImage: windows-latest
         steps:
+          - checkout: self
+            fetchDepth: 1
           - task: UseDotNet@2
+            displayName: Install .NET from global.json
             inputs:
               packageType: sdk
-              version: 10.0.401
-          - download: current
-            artifact: built-source
-            path: $(Pipeline.Workspace)/built-source
-          - script: dotnet pack packages/Assimalign.Viu.Docs/src -c $(buildConfiguration) --no-build -o $(Build.ArtifactStagingDirectory)/packages
-            workingDirectory: $(Pipeline.Workspace)/built-source
-            displayName: Pack
+              useGlobalJson: true
+          - pwsh: dotnet workload install wasm-tools
+            displayName: Install WebAssembly workload
+          - pwsh: |
+              $ErrorActionPreference = 'Stop'
+              dotnet restore ViuDocs.slnx
+              if ($LASTEXITCODE -ne 0) { throw 'Restore failed.' }
+              dotnet build ViuDocs.slnx -c $(buildConfiguration) --no-restore
+              if ($LASTEXITCODE -ne 0) { throw 'Build failed.' }
+              dotnet test ViuDocs.slnx -c $(buildConfiguration) --no-build
+              if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
+              dotnet pack packages/Assimalign.Viu.Docs/src -c $(buildConfiguration) --no-build --output '$(Build.ArtifactStagingDirectory)/packages'
+              if ($LASTEXITCODE -ne 0) { throw 'Pack failed.' }
+            displayName: Restore, build, test, and pack
+            env:
+              NuGetPackageSourceCredentials_assimalign: Username=assimalign;Password=$(GITHUB_PACKAGES_TOKEN);ValidAuthenticationTypes=Basic
           - publish: $(Build.ArtifactStagingDirectory)/packages
             artifact: packages
 

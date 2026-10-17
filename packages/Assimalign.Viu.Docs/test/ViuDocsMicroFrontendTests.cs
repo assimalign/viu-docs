@@ -3,12 +3,16 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
+using Assimalign.Cohesion.DependencyInjection;
+using Assimalign.Cohesion.Viu.Hosting;
 using Assimalign.Frontend;
 using Assimalign.Viu.Components;
 using Assimalign.Viu.Router;
 
 using Shouldly;
 using Xunit;
+
+using ViuRouter = Assimalign.Viu.Router.Router;
 
 namespace Assimalign.Viu.Docs.Tests;
 
@@ -47,6 +51,22 @@ public sealed class ViuDocsMicroFrontendTests
         GeneratedMarkdownContent.Catalog.Pages.Single(page => page.SourceRelativePath == "index.md")
             .RoutePath.ShouldBe("/viu");
         GeneratedMarkdownContent.Catalog.Pages.ShouldNotContain(page => page.RoutePath == "/guide");
+    }
+
+    [Fact]
+    public void AddMicroFrontends_RegistersTheModuleAndRoutesItThroughTheApplicationRouter()
+    {
+        ViuApplicationBuilder builder = ViuApplication.CreateBuilder();
+        builder.Services.AddMicroFrontends(microFrontends => microFrontends
+            .Add(new ViuDocsMicroFrontend()));
+        IServiceProvider services = ((IServiceProviderBuilder)builder.Services).Build();
+
+        services.GetRequiredService<IMicroFrontendCatalog>().Descriptors
+            .ShouldHaveSingleItem().Id.ShouldBe("viu");
+        ViuRouter router = services.GetRequiredService<ViuRouter>();
+        router.Resolve("/viu").Name.ShouldBe("viu:/viu");
+        router.Resolve("/viu/guide/quick-start").Name.ShouldBe("viu:/viu/guide/quick-start");
+        router.Resolve("/viu/missing-page").Name.ShouldBe("viu:not-found");
     }
 
     [Fact]
