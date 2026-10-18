@@ -1,0 +1,72 @@
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - docs/**
+      - packages/**
+      - app/**
+
+# Every Assimalign.* package restores from the Assimalign GitHub Packages feed at the pins in
+# global.json and Directory.Build.props. The aaln-core-frontend-github-packages variable group holds
+# GITHUB_PACKAGES_TOKEN, a personal access token (classic) with read:packages; NuGet reads it through
+# NuGetPackageSourceCredentials_assimalign, so NuGet.config never contains it.
+variables:
+  - group: aaln-core-frontend-github-packages
+  - name: buildConfiguration
+    value: Release
+  - name: AalnPackageFeed
+    value: aaln-core
+
+stages:
+  - stage: Pack
+    displayName: Build, test, and pack
+    jobs:
+      - job: Pack
+        pool:
+          vmImage: windows-latest
+        steps:
+          - checkout: self
+            fetchDepth: 1
+          - task: UseDotNet@2
+            displayName: Install .NET from global.json
+            inputs:
+              packageType: sdk
+              useGlobalJson: true
+          - pwsh: dotnet workload install wasm-tools
+            displayName: Install WebAssembly workload
+          - pwsh: |
+              $ErrorActionPreference = 'Stop'
+              dotnet restore ViuDocs.slnx
+              if ($LASTEXITCODE -ne 0) { throw 'Restore failed.' }
+              dotnet build ViuDocs.slnx -c $(buildConfiguration) --no-restore
+              if ($LASTEXITCODE -ne 0) { throw 'Build failed.' }
+              dotnet test ViuDocs.slnx -c $(buildConfiguration) --no-build
+              if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
+              dotnet pack packages/Assimalign.Viu.Docs/src -c $(buildConfiguration) --no-build --output '$(Build.ArtifactStagingDirectory)/packages'
+              if ($LASTEXITCODE -ne 0) { throw 'Pack failed.' }
+            displayName: Restore, build, test, and pack
+            env:
+              NuGetPackageSourceCredentials_assimalign: Username=assimalign;Password=$(GITHUB_PACKAGES_TOKEN);ValidAuthenticationTypes=Basic
+          - publish: $(Build.ArtifactStagingDirectory)/packages
+            artifact: packages
+
+  - stage: Push
+    dependsOn: Pack
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - job: Push
+        pool:
+          vmImage: windows-latest
+        steps:
+          - task: UseDotNet@2
+            inputs:
+              packageType: sdk
+              version: 10.0.401
+          - download: current
+            artifact: packages
+          - task: NuGetAuthenticate@1
+          - powershell: |
+              dotnet nuget push '$(Pipeline.Workspace)\packages\*.nupkg' --source 'https://pkgs.dev.azure.com/assimalign/Core/_packaging/$(AalnPackageFeed)/nuget/v3/index.json' --api-key AzureArtifacts --skip-duplicate
+            displayName: Push packages

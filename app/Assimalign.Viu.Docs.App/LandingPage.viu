@@ -1,0 +1,14 @@
+<template>
+    <section class="grid min-h-screen place-content-center gap-4 bg-ground-light p-8 text-center text-ink-on-light dark:bg-ground-dark dark:text-ink-on-dark">
+        <p class="font-semibold">Assimalign documentation</p>
+        <h1 class="text-xl">Viu</h1>
+        <p class="opacity-70">
+            Build ahead-of-time C# user interfaces for the browser with the Viu component model.
+        </p>
+        <p>
+            <RouterLink to="/viu" class="font-semibold">
+                Read the Viu documentation
+            </RouterLink>
+        </p>
+    </section>
+</template>

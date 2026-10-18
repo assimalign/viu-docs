@@ -1,7 +1,9 @@
 .nuget/
+_out/
 **/bin/
 **/obj/
-app/ViuDocs.Client/wwwroot/_content/
+**/wwwroot/_content/
+**/wwwroot/_framework/
 
 # Visual Studio working directory
 .vs/

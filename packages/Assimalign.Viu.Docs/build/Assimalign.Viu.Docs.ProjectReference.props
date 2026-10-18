@@ -1,0 +1,20 @@
+<Project>
+  <!-- The project-reference equivalent of the package's transitive content registration: project
+       references do not import the nupkg's generated buildTransitive props, so a development host
+       imports this file next to its ProjectReference. The generated catalog names each page by the
+       asset name the Viu Markdown build assigns (hashed by default: the first twelve hex digits of
+       the SHA-256 of the forward-slash source path, plus ".md"), so each file is linked under that
+       same name. Keep this in step with the package's ViuMarkdownAssetNaming; it is the Markdown
+       build's default, hashed. -->
+  <PropertyGroup>
+    <_ViuDocsProjectContentRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', '..\..\..\docs'))</_ViuDocsProjectContentRoot>
+  </PropertyGroup>
+  <ItemGroup>
+    <_ViuDocsProjectMarkdown Include="$(_ViuDocsProjectContentRoot)**\*.md" />
+    <Content Include="@(_ViuDocsProjectMarkdown)"
+             Link="wwwroot\_content\Assimalign.Viu.Docs\docs\$([MSBuild]::StableStringHash($([System.String]::Copy('$([MSBuild]::MakeRelative('$(_ViuDocsProjectContentRoot)', '%(FullPath)'))').Replace('\', '/')), 'Sha256').Substring(0, 12).ToLowerInvariant()).md"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+    <_ViuDocsProjectMarkdown Remove="@(_ViuDocsProjectMarkdown)" />
+  </ItemGroup>
+</Project>

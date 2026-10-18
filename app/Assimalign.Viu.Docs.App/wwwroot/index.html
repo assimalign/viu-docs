@@ -4,22 +4,27 @@
     <meta charset="utf-8">
     <base href="/">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#10251d">
-    <meta
-        name="description"
-        content="The Viu documentation, rendered in a Viu WebAssembly application.">
+    <meta name="theme-color" content="#f3f5fe" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#161826" media="(prefers-color-scheme: dark)">
+    <meta name="description" content="The Viu documentation, rendered in the shared Assimalign documentation shell.">
     <title>Viu Documentation</title>
-    <link rel="stylesheet" href="site.css">
+    <link rel="icon" href="/_content/Assimalign.Frontend.Components/branding/on-light/viu.svg">
+    <link rel="stylesheet" href="Assimalign.Frontend.Components.utilities.css">
     <link rel="preload" id="webassembly">
     <script type="importmap"></script>
     <script type="module" src="main#[.{fingerprint}].js"></script>
 </head>
 <body>
     <div id="app">
-        <div class="boot-screen" role="status">
-            <span class="boot-mark">V</span>
-            <p>Starting the Viu documentation runtime…</p>
+        <div class="grid min-h-screen place-content-center gap-4 bg-ground-light p-8 text-center text-ink-on-light dark:bg-ground-dark dark:text-ink-on-dark" role="status">
+            <picture class="inline-flex">
+                <source media="(prefers-color-scheme: dark)" srcset="/_content/Assimalign.Frontend.Components/branding/on-dark/viu.svg">
+                <img src="/_content/Assimalign.Frontend.Components/branding/on-light/viu.svg" alt="" width="96" height="96">
+            </picture>
+            <strong class="text-xl">Viu Documentation</strong>
+            <p class="animate-pulse opacity-70">Loading documentation…</p>
         </div>
     </div>
+    <noscript>This documentation application requires JavaScript and WebAssembly.</noscript>
 </body>
 </html>

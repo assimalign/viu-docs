@@ -1,4 +1,4 @@
-<Project Sdk="Assimalign.Viu.Sdk.Browser/10.0.0-beta.12">
+<Project Sdk="Assimalign.Viu.Sdk.Browser">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
@@ -12,42 +12,20 @@
     <PublishTrimmed>true</PublishTrimmed>
     <TrimMode>full</TrimMode>
     <ViuRunAotCompilation Condition="'$(ViuRunAotCompilation)' == ''">false</ViuRunAotCompilation>
-    <!-- Workaround for assimalign/viu#280 in pristine SDK consumers. -->
     <GenerateRequiresPreviewFeaturesAttribute>true</GenerateRequiresPreviewFeaturesAttribute>
-    <!-- The Assimalign.Cohesion.* assemblies are built with EnablePreviewFeatures=true and carry
-         [assembly: RequiresPreviewFeatures], so consumers must opt in (CA2252). -->
     <EnablePreviewFeatures>true</EnablePreviewFeatures>
-    <!-- Some .NET 10 SDK installations omit their optional PrunePackageData directory. -->
     <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
     <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
-    <ViuMarkdownContentRoot>..\..\docs</ViuMarkdownContentRoot>
-    <ViuMarkdownContentPrefix>docs/</ViuMarkdownContentPrefix>
-    <ViuMarkdownGeneratedNamespace>ViuDocs</ViuMarkdownGeneratedNamespace>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Assimalign.Cohesion.Viu.Markdown"
-                      Version="10.0.0-beta.4" />
-    <PackageReference Include="Assimalign.Cohesion.Viu.Hosting"
-                      Version="10.0.0-beta.4" />
-    <PackageReference Include="Assimalign.Cohesion.Viu.Hosting.Browser"
-                      Version="10.0.0-beta.4" />
-    <PackageReference Include="Assimalign.Viu.Browser.Router"
-                      Version="10.0.0-beta.12" />
-    <PackageReference Include="Assimalign.Viu.Router"
-                      Version="10.0.0-beta.12" />
-  </ItemGroup>
-
-  <!--
-    Linked Content keeps docs/ as the single source of truth. The Link metadata places each
-    external file under wwwroot/docs for Microsoft static-web-asset discovery, while the copy
-    metadata also gives the Cohesion host a physical fallback beneath $(OutDir)wwwroot.
-  -->
-  <ItemGroup>
-    <Content Include="..\..\docs\**\*.md"
-             Link="wwwroot\docs\%(RecursiveDir)%(Filename)%(Extension)"
-             CopyToOutputDirectory="PreserveNewest"
-             CopyToPublishDirectory="PreserveNewest" />
+    <ProjectReference Include="..\..\packages\Assimalign.Viu.Docs\src\Assimalign.Viu.Docs.csproj" />
+    <PackageReference Include="Assimalign.Frontend.Components" Version="$(FrontendVersion)" />
+    <PackageReference Include="Assimalign.Cohesion.Viu.Hosting" Version="$(CohesionViuVersion)" />
+    <PackageReference Include="Assimalign.Cohesion.Viu.Hosting.Browser" Version="$(CohesionViuVersion)" />
+    <PackageReference Include="Assimalign.Cohesion.Viu.Routing" Version="$(CohesionViuVersion)" />
+    <PackageReference Include="Assimalign.Cohesion.Viu.DevServer" Version="$(CohesionViuVersion)" />
+    <PackageReference Include="Assimalign.Viu.Router" Version="$(ViuVersion)" />
   </ItemGroup>
 
   <ItemGroup>
@@ -55,4 +33,6 @@
                                       Pattern="*.js"
                                       Expression="#[.{fingerprint}]!" />
   </ItemGroup>
+
+  <Import Project="..\..\packages\Assimalign.Viu.Docs\build\Assimalign.Viu.Docs.ProjectReference.props" />
 </Project>

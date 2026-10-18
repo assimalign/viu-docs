@@ -1,0 +1,38 @@
+<Project Sdk="Assimalign.Viu.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <PackageId>Assimalign.Viu.Docs</PackageId>
+    <AssemblyName>Assimalign.Viu.Docs</AssemblyName>
+    <RootNamespace>Assimalign.Viu.Docs</RootNamespace>
+    <Version>1.0.0-preview.2</Version>
+    <IsPackable>true</IsPackable>
+    <IsAotCompatible>true</IsAotCompatible>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>preview</LangVersion>
+    <EnablePreviewFeatures>true</EnablePreviewFeatures>
+    <GenerateRequiresPreviewFeaturesAttribute>true</GenerateRequiresPreviewFeaturesAttribute>
+    <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Authors>Assimalign</Authors>
+    <Description>The Viu documentation micro-frontend for Assimalign documentation hosts.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/assimalign/viu-docs</RepositoryUrl>
+    <PackageReadmeFile>docs\OVERVIEW.md</PackageReadmeFile>
+    <ViuMarkdownContentRoot>..\..\..\docs</ViuMarkdownContentRoot>
+    <ViuMarkdownContentPrefix>_content/Assimalign.Viu.Docs/docs/</ViuMarkdownContentPrefix>
+    <ViuMarkdownGeneratedNamespace>Assimalign.Viu.Docs</ViuMarkdownGeneratedNamespace>
+    <ViuMarkdownRouteBase>/viu</ViuMarkdownRouteBase>
+    <FrontendStaticContentRoot>..\..\..\docs</FrontendStaticContentRoot>
+    <FrontendStaticContentPrefix>docs</FrontendStaticContentPrefix>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Assimalign.Frontend.MicroFrontends" Version="$(FrontendVersion)" />
+    <PackageReference Include="Assimalign.Cohesion.Viu.Markdown" Version="$(CohesionViuVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\docs\OVERVIEW.md" Pack="true" PackagePath="docs\OVERVIEW.md" />
+  </ItemGroup>
+</Project>
