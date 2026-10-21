@@ -73,16 +73,16 @@ Vue exposes the default module as `$style`, which has no legal C# spelling. Viu 
 accessor class `Style`, and the template compiler remaps the authored `$style` spelling onto it.
 
 ```viu
-@template {
+<template>
     <div :class="$style.box">
         <span :class="$style.label">Boxed</span>
     </div>
-}
+</template>
 
-@style module {
+<style module>
     .box { border: 1px solid currentColor; }
     .label { font-weight: 600; }
-}
+</style>
 ```
 
 The generator emits:
@@ -103,13 +103,13 @@ The extracted CSS carries `.box_4f2a91c7 { … }`; the authored `.box` selector 
 `module="theme"` produces a pascal-cased accessor class. The template still uses the **authored** name:
 
 ```viu
-@template {
+<template>
     <button :class="theme.active">Save</button>
-}
+</template>
 
-@style module="theme" {
+<style module="theme">
     .active { background: #0b7; }
-}
+</style>
 ```
 
 emits `internal static class Theme { public const string active = "active_…"; }` and binds `Theme.active`.
@@ -139,13 +139,13 @@ hash suffix.
 The class map is complete, so an unknown member is a build error rather than a silent empty string:
 
 ```viu
-@template {
+<template>
     <div :class="$style.missing">hi</div>
-}
+</template>
 
-@style module {
+<style module>
     .box { color: red; }
-}
+</style>
 ```
 
 reports `VIU1101` on the `.viu` line: `'$style' has no member 'missing'.`
@@ -203,8 +203,11 @@ sandbox. Components are ordered by normalized project-relative path, and the bun
 without BOM and LF line endings.
 
 The base `Assimalign.Viu.Sdk` packs a component library's `.viu.css` with generated `buildTransitive`
-registration. `Assimalign.Viu.Sdk.Browser` bundles application styles, delivers referenced-library
-styles under `_content/<PackageId>/`, and injects links in library-before-application order. The
+registration. `Assimalign.Viu.Sdk.Browser` bundles application styles and delivers referenced-library
+styles under `_content/<PackageId>/<PackageId>.viu.css`. Both PackageReference and ProjectReference
+libraries participate, including transitive project references. After building those references,
+Browser queries `GetViuComponentLibraryStyles` and injects links in ordinal library-before-application
+order during Build and Publish. No manual library stylesheet link is needed under the default policy. The
 application bundle retains the last cascade position. An existing matching link is preserved.
 
 Ordinary component styles and CSS Modules use the same bundle and CSS hot-reload worker. A style-only

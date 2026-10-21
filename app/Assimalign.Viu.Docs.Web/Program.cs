@@ -1,72 +1,17 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-
-using Assimalign.Cohesion.DependencyInjection;
 using Assimalign.Cohesion.Viu.Server;
 using Assimalign.Cohesion.Web;
+using Assimalign.Cohesion.Web.Routing;
 using Assimalign.Cohesion.Web.Hosting;
 
-using ViuDocs.Server;
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-IReadOnlyList<ServerAddress> addresses = ServerAddressResolver.Resolve(
-    Environment.GetEnvironmentVariable("ASPNETCORE_URLS"));
+builder.Services.AddViuClient();
+builder.Services.AddRouting();
 
-WebApplicationBuilder builder = WebApplication.CreateBuilder();
-builder.AddViuApplication(options =>
-{
-    options.UseClientOutput("ViuDocs");
-    options.EnableSpaFallback = true;
-});
-builder.Server.UseServer(listener =>
-{
-    foreach (ServerAddress address in addresses)
-    {
-        listener.UseHttp1(transport =>
-        {
-            transport.EndPoint = address.EndPoint;
-            transport.NoDelay = true;
-        });
-    }
-});
+await using WebApplication app = builder.Build();
 
-await using WebApplication application = builder.Build();
-application.UseViuApplication();
+app.UseRouting();
+app.UseViuApplication();
+app.MapGet("api/hello/{name}", (string name) => $"Hello, {name}!");
 
-// Future SSR seam: set EnableSpaFallback to false above, register the built server-side
-// ViuApplication before Build with builder.AddViuServerApplication(viuApplication), then compose:
-// application.UseViuServerRenderer(viuApplication, serverRenders, shouldRender);
-
-using ShutdownSignals shutdown = new();
-IWebApplicationServer server =
-    application.Context.ServiceProvider.GetRequiredService<IWebApplicationServer>();
-
-await server.StartAsync(shutdown.CancellationToken).ConfigureAwait(false);
-try
-{
-    foreach (ServerAddress address in addresses)
-    {
-        await PortReadinessProbe.WaitAsync(address, shutdown.CancellationToken).ConfigureAwait(false);
-        await Console.Out.WriteLineAsync($"Now listening on: {address.Url.AbsoluteUri}").ConfigureAwait(false);
-        await Console.Out.WriteLineAsync($"App url: {address.Url.AbsoluteUri}").ConfigureAwait(false);
-    }
-
-    await Console.Out.FlushAsync(shutdown.CancellationToken).ConfigureAwait(false);
-    await WaitForShutdownAsync(shutdown.CancellationToken).ConfigureAwait(false);
-}
-finally
-{
-    await server.StopAsync(CancellationToken.None).ConfigureAwait(false);
-}
-
-static async Task WaitForShutdownAsync(CancellationToken cancellationToken)
-{
-    try
-    {
-        await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
-    }
-    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-    {
-    }
-}
+await app.RunAsync();
