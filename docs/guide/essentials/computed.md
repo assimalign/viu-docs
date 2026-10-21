@@ -23,7 +23,7 @@ There is exactly one factory, with an optional setter:
 public static Computed<T> Computed<T>(Func<T> getter, Action<T>? setter = null);
 ```
 
-It returns `Computed<T>`, which implements `IReference<T>` — so a computed is a ref as far as the
+It returns `Computed<T>`, which implements `IReactiveReference<T>` — so a computed is a ref as far as the
 rest of the system is concerned, and `Reactive.IsRef(computed)` is `true`.
 
 ```csharp
@@ -50,9 +50,9 @@ The Vue counterparts, for orientation:
 | --- | --- | --- |
 | `computed(getter)` | `Reactive.Computed<T>(getter)` | Read-only computed. |
 | `computed({ get, set })` | `Reactive.Computed<T>(getter, setter)` | Writable computed. |
-| `ComputedRef<T>` | `Computed<T>` | A sealed class deriving from `Subscriber` and implementing `IReference<T>`. |
+| `ComputedRef<T>` | `Computed<T>` | A sealed class deriving from `ReactiveValue<T>` and implementing `IReactiveReference<T>`. |
 | `.value` | `.Value` | Capital `V`, everywhere. |
-| `isReadonly(c)` | `Reactive.IsReadonly(c)` | `true` for a getter-only computed. |
+| `isReadonly(c)` | `Reactive.IsReadOnly(c)` | `true` for a getter-only computed. |
 | — | `Computed<T>.IsWritable` | Viu addition: whether a setter was supplied. |
 
 ## Deriving a list
@@ -147,15 +147,15 @@ you just assigned. Viu enforces nothing about that relationship; a setter that w
 state produces a computed whose read and write disagree, exactly as in Vue.
 
 `IsWritable` is a Viu addition with no Vue counterpart. It exposes the same fact
-`Reactive.IsReadonly` reports, from the other direction:
+`Reactive.IsReadOnly` reports, from the other direction:
 
 ```csharp
 // Continues the snippet above.
 var readOnly = Reactive.Computed(() => 1);
 
 Console.WriteLine(readOnly.IsWritable);           // False
-Console.WriteLine(Reactive.IsReadonly(readOnly)); // True
-Console.WriteLine(Reactive.IsReadonly(full));     // False — a writable computed is not readonly
+Console.WriteLine(Reactive.IsReadOnly(readOnly)); // True
+Console.WriteLine(Reactive.IsReadOnly(full));     // False — a writable computed is not readonly
 ```
 
 ## Read-only failure modes
@@ -167,12 +167,12 @@ shapes and only two failure modes**, and they are not interchangeable.
 | --- | --- | --- |
 | Getter-only `Computed<T>` | **Throws** | `NotSupportedException("Cannot write to a computed without a setter.")` |
 | Getter-only `Reactive.ToRef(getter)` | Silent no-op | `Debug.WriteLine` warning only |
-| `[Reactive(Readonly = true)]` property | Silent no-op | `Debug.WriteLine` warning only |
+| `[Reactive(ReadOnly = true)]` property | Silent no-op | `Debug.WriteLine` warning only |
 
 ```csharp
 using Assimalign.Viu.Reactivity;
 
-[Reactive(Readonly = true)]
+[Reactive(ReadOnly = true)]
 public partial class ReadonlyProfile
 {
     public partial string Handle { get; set; }
@@ -195,14 +195,14 @@ var titleRef = Reactive.ToRef(() => todo.Title);
 titleRef.Value = "Something else";
 Console.WriteLine(todo.Title); // "Write the docs" — the write was dropped
 
-// 3. [Reactive(Readonly = true)] — the generated setter warns and neither mutates nor triggers.
+// 3. [Reactive(ReadOnly = true)] — the generated setter warns and neither mutates nor triggers.
 var profile = new ReadonlyProfile();
 profile.Handle = "ada";
 Console.WriteLine(profile.Handle is null); // True — the assignment never landed
 ```
 
 Case 3 has a sharp edge worth naming: an object initializer routes through that same generated
-setter, so `new ReadonlyProfile { Handle = "ada" }` is *also* dropped. A `[Reactive(Readonly =
+setter, so `new ReadonlyProfile { Handle = "ada" }` is *also* dropped. A `[Reactive(ReadOnly =
 true)]` class has no way to seed its own properties from outside.
 
 The practical consequence: **a getter-only computed is the only read-only shape you can rely on to
@@ -306,7 +306,7 @@ usually ask about and disagree on one:
 For reference types this means `Equals`/`IEquatable<T>` semantics, not reference identity: a
 computed returning a value-equal `record` will not notify downstream even though the instance is
 new. There is no way to inject a custom `IEqualityComparer<T>` — see
-[Not yet implemented](#not-yet-implemented).
+[Constraints](#constraints).
 
 ## Computeds are never owned by an effect scope
 
@@ -389,8 +389,7 @@ valid, without any reset step.
 
 ## Forcing a notification
 
-`Reactive.TriggerReference` takes any `IReference` and force-notifies the readers of those that
-own a dependency cell — `Computed<T>` is one of them (upstream parity with `triggerRef()`). The
+`Reactive.TriggerReference` takes `IReactiveTrackedReference` and force-notifies its readers — `Computed<T>` is one of them (upstream parity with `triggerRef()`). The
 notification bypasses the equality cutoff entirely:
 
 ```csharp
@@ -409,86 +408,33 @@ Reactive.TriggerReference(doubled);
 This is a deliberate escape hatch and rarely the right answer. If you find yourself reaching for
 it routinely, the usual cause is a getter reading through something that is not reactive — a plain
 `List<T>`, a POCO with no `[Reactive]` attribute — and the fix is to make that source reactive
-rather than to force notifications. Note that `Reactive.ToRef(...)` refs own no dependency cell, so
-`TriggerReference` is a silent no-op on them.
+rather than to force notifications. `Reactive.ToRef(...)` projections do not supply the tracked-cell contract required by TriggerReference.
 
 ## Computeds in a component
 
-Inside `Setup`, a computed is created once, captured by the returned render closure, and read
-during render. Because `Setup` runs exactly once per instance, there is no re-creation cost per
-render:
-
-```csharp
-using System;
-using System.Linq;
-using Assimalign.Viu.Reactivity;
-using Assimalign.Viu.RuntimeCore;
-
-public sealed class TodoSummary : IComponentDefinition
-{
-    public string? Name => "TodoSummary";
-
-    public Func<VirtualNode?> Setup(ComponentProperties properties, ComponentSetupContext context)
-    {
-        var todos = new ReactiveList<TodoItem>();
-        var remaining = Reactive.Computed(() => todos.Count(todo => !todo.Done));
-        var label = Reactive.Computed(() => remaining.Value == 1
-            ? "1 item left"
-            : $"{remaining.Value} items left");
-
-        return () => VirtualNodeFactory.Element(
-            "p",
-            VirtualNodeFactory.Properties(("class", "todo-summary")),
-            label.Value);
-    }
-}
-```
-
-Note that `label` is a computed over another computed. Chaining is normal and cheap: `label` only
-recomputes when `remaining` reports an actual value change, so incrementing and decrementing a
-todo's `Done` flag back to the same count re-renders nothing.
-
-A `.viu` single-file component expresses the same derivation, and its template reads it without
-`.Value` — the generator classifies any `Computed<T>` member as a `SetupReference` binding and
-inserts `.Value` during identifier rewriting. The one thing to get right is that `@script` content
-is a **partial-class body, not a method body**: the computeds are members initialized in a
-constructor, not locals.
+Save this as CounterSummary.viu. Initialize derived members after their input references exist:
 
 ```viu
-@template {
-    <p class="todo-summary">{{ Label }}</p>
-}
+<template>
+    <p>{{ Label }}</p>
+    <button type="button" @click="Count++">Increment</button>
+</template>
 
 @script {
-    using System.Linq;
     using Assimalign.Viu.Reactivity;
 
-    public ReactiveList<TodoItem> Todos = new();
+    public Reference<int> Count { get; } = Reactive.Reference(0);
+    public Computed<string> Label { get; private set; } = null!;
 
-    public Computed<int> Remaining { get; }
-
-    public Computed<string> Label { get; }
-
-    public TodoSummary()
+    partial void OnSetup()
     {
-        Remaining = Reactive.Computed(() => Todos.Count(todo => !todo.Done));
-        Label = Reactive.Computed(() => Remaining.Value == 1
-            ? "1 item left"
-            : $"{Remaining.Value} items left");
+        Label = Reactive.Computed(() => $"{Count.Value} clicks");
     }
 }
 ```
 
-The class name comes from the file name, so this is `TodoSummary.viu`. Indent every block body —
-a `}` in column 0 closes the block.
-
-> **Not yet implemented:** the `.viu` compiler emits the `partial class` and its `Render` method,
-> but the runtime adapter that turns that generated class into an `IComponentDefinition` does not
-> exist yet, so a `.viu` component cannot be mounted today. The C# `IComponentDefinition` form
-> above is the shape that runs.
-
-See [Single-File Components](../scaling-up/single-file-components.md) for the `.viu` block format
-and [Template Syntax](template-syntax.md) for the `.Value` insertion rule.
+The generated render reads Label.Value. The component is mountable; no handwritten runtime adapter
+or factory boilerplate is required under Browser generated defaults. Each mount owns its references.
 
 ## Computed or watcher?
 
@@ -499,30 +445,14 @@ Both derive from reactive state, and picking the wrong one is a common source of
   DOM work, no I/O.
 - **Use a watcher for an action** — when a change should *cause* something: a network call, a log
   line, imperative work. See [Watchers](watchers.md), and note the flush-mode divergence documented
-  there — `WatchOptions.Flush` defaults to `WatchFlushMode.Sync`, not `Pre`.
+  there — `WatchOptions.Flush` defaults to `WatchFlushMode.Synchronous`, not `Pre`.
 
 A getter that mutates state is the anti-pattern in both frameworks. In Viu it is worse than
 untidy: writing to a ref that the same getter reads sets up a self-triggering dependency, and the
 recursion suppression that saves a `ReactiveEffect` (`AllowRecurse`, default `false`) is not part
 of a computed's contract.
 
-## Not yet implemented
+## Constraints
 
-The following exist in Vue but not in Viu today. See [Project Status](../../roadmap/status.md) and
-[Differences from Vue 3](../../roadmap/vue-differences.md) for the full picture.
-
-- **No `onTrack` / `onTrigger` debug hooks** — Vue's dev-only computed debugging callbacks do not
-  exist on `Computed<T>`, `ReactiveEffect`, or `WatchOptions`.
-- **No custom equality comparer** — change detection is hardwired to `EqualityComparer<T>.Default`
-  on `Computed<T>`, `Reference<T>`, `ShallowReference<T>`, and generated property setters. There
-  is no injection point.
-- **No runtime `readonly(obj)` wrapper** — you cannot derive a read-only view of an existing
-  mutable reactive object. Read-only is decided at compile time via
-  `[Reactive(Readonly = true)]`, or per value by omitting a computed's setter.
-- **No async computeds** — the getter is a `Func<T>`; there is no `Task`-returning form, and
-  `Suspense` is a marker object that throws `NotSupportedException`, so there is no boundary to
-  await one. Load asynchronously into a `Reference<T>` from `Setup` and derive from that ref
-  instead. See [KeepAlive, Teleport & Suspense](../built-ins/deferred-built-ins.md).
-- **No thread safety** — every piece of ambient reactivity state is a plain static field with no
-  synchronization. This is a design decision for the single-threaded browser event loop, not a gap
-  to be filled. Do not touch a computed from a background thread.
+Custom reactive value-change comparers are not supported. Generated reactive CSS v-bind()
+application remains deferred; see [Project Status](../../roadmap/status.md).

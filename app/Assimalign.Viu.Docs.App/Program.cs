@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Runtime.InteropServices.JavaScript;
 
@@ -10,22 +11,19 @@ using Assimalign.Viu.Components;
 using Assimalign.Viu.Docs;
 using Assimalign.Viu.Router;
 
+using ViuDocs;
+
 ViuApplicationBuilder builder = ViuApplication.CreateBuilder();
 using HttpClient httpClient = new() { BaseAddress = ResolveBaseAddress() };
 
-builder.Services.AddComponents(global::ViuDocs.GeneratedViuComponents.Register);
+builder.Services.AddComponents();
 builder.Services.AddFrontendComponents();
-builder.Services.AddRouting(routing => routing.Routes.Add(new RouteRecord(
-    "/",
-    "landing-layout",
-    children:
-    [
-        new RouteRecord(
-            string.Empty,
-            "landing",
-            component: new ComponentNode(ComponentReference.ForName("LandingPage"))),
-    ],
-    component: new ComponentNode(ComponentReference.ForName("AppShell")))));
+builder.Services.AddRouting(routing =>
+{
+    List<RouteRecord> children = [];
+    children.Add<LandingPage>(string.Empty, name: "landing");
+    routing.Routes.Add("/", "AppShell", children: children, name: "landing-layout");
+});
 builder.Services.AddMicroFrontends(microFrontends => microFrontends
     .UseShell(ComponentReference.ForName("AppShell"))
     .Add(new ViuDocsMicroFrontend(httpClient)));

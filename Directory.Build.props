@@ -4,11 +4,12 @@
          Assimalign.Viu.Sdk entry is the one Viu pin: it selects the SDK, and every Viu package
          reference restores the same build. global.json's Assimalign.Cohesion.Sdk entries select the
          Cohesion build that CohesionViuVersion pins exactly. CohesionViuVersion (viu-platforms) and
-         FrontendVersion (aaln-core-frontend) must be builds that depend on that same Viu build, so
-         move the pins together. -->
+         FrontendVersion (aaln-core-frontend) must remain runtime-compatible with those builds;
+         its older declared minimum dependencies do not require a frontend republish by themselves.
+         Move SDK/runtime/hosting pins together and validate the shared frontend. -->
     <_ViuDocsGlobalJson>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)global.json'))</_ViuDocsGlobalJson>
     <ViuVersion>$([System.Text.RegularExpressions.Regex]::Replace($(_ViuDocsGlobalJson), '(?s)^.*"Assimalign\.Viu\.Sdk"\s*:\s*"([^"]+)".*$', '$1'))</ViuVersion>
-    <CohesionViuVersion>10.0.0-preview.0.ci.5</CohesionViuVersion>
+    <CohesionViuVersion>10.0.0-preview.0.pr.4.8</CohesionViuVersion>
     <FrontendVersion>1.0.0-preview.1.ci.1</FrontendVersion>
   </PropertyGroup>
 </Project>

@@ -14,11 +14,7 @@ IReadOnlyList<ServerAddress> addresses = ServerAddressResolver.Resolve(
     Environment.GetEnvironmentVariable("ASPNETCORE_URLS"));
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder();
-builder.AddViuApplication(options =>
-{
-    options.UseClientOutput("ViuDocs");
-    options.EnableSpaFallback = true;
-});
+builder.Services.AddViuClient();
 builder.Server.UseServer(listener =>
 {
     foreach (ServerAddress address in addresses)
@@ -34,9 +30,9 @@ builder.Server.UseServer(listener =>
 await using WebApplication application = builder.Build();
 application.UseViuApplication();
 
-// Future SSR seam: set EnableSpaFallback to false above, register the built server-side
-// ViuApplication before Build with builder.AddViuServerApplication(viuApplication), then compose:
-// application.UseViuServerRenderer(viuApplication, serverRenders, shouldRender);
+// Future SSR seam: disable EnableSpaFallback in AddViuClient, register shared server-renderable
+// components with builder.Services.AddViuServerRendering before Build, then compose:
+// application.UseViuServerRenderer(shouldRender);
 
 using ShutdownSignals shutdown = new();
 IWebApplicationServer server =

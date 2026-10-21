@@ -309,14 +309,13 @@ first.Name = "B";                                // nested reactive element -> r
 list.Add(new ReactivePerson { Name = "C" });     // structural change       -> runs == 2
 ```
 
-Traversal descends only through `IReference` cells and `IReactiveTraversable` values, so a deep watch reaches
+Traversal descends only through `IReactiveReference` cells and `IReactiveTraversable` values, so a deep watch reaches
 a nested `[Reactive]` element but treats a plain CLR object as a leaf. Each collection contributes its
 iteration dependency and then visits its contents: a list visits every element, a set visits every member,
 and a **dictionary visits every value — not its keys**.
 
-Inside a component, prefer `ViuWatch.Watch` from `Assimalign.Viu.RuntimeCore` so the watcher gets a
-scheduler and is bound to the component scope. See [Watchers](../guide/essentials/watchers.md) for the flush
-rules, and remember that `WatchOptions.Flush` defaults to `WatchFlushMode.Sync` in Viu, not `Pre`.
+Inside a component, use `context.Watch` for a simple scope-owned pre-flush getter watch.
+For deep options, run `Reactive.Watch` inside `context.Scope` and supply `context.WatchScheduler`.
 
 ## Rendering a collection
 
@@ -327,8 +326,7 @@ subsequence diff then moves nodes rather than recreating them. See
 
 ## Raw access
 
-`Reactive.ToRaw` has a dedicated overload for each collection, and unlike the generic overload these
-genuinely escape the instrumentation:
+`Reactive.ToRaw` has a dedicated overload for each collection. These return untracked live storage:
 
 ```csharp
 public static List<T> ToRaw<T>(ReactiveList<T> list);
@@ -357,9 +355,8 @@ raw.Add(3);      // same storage, no trigger -> runs == 1, raw.Count == 3
 list.Add(4);     // reactive mutation        -> runs == 2
 ```
 
-This differs from the generic `Reactive.ToRaw<T>(T)`, which returns a `[Reactive]` object **by identity** —
-reads through that result still track. See
-[Reactivity API: Utilities & Advanced](reactivity-utilities.md).
+Generated objects do not use a runtime proxy. Use their supported generated raw-value
+contract rather than the removed generic ToRaw identity overload.
 
 ## Classification and equality
 
@@ -387,10 +384,8 @@ it treats `+0.0` and `-0.0` as equal. See [Differences from Vue 3](../roadmap/vu
 
 ## Thread safety
 
-None of these types is thread-safe, and neither is anything else in `Assimalign.Viu.Reactivity`. The
-dependency cells, the ambient active subscriber, and the batch queues are all plain static or instance state
-with no synchronization. This is a design decision for the single-threaded browser event-loop model, not a
-gap — multi-threaded use is unsupported.
+Each reactive graph remains single-event-loop and not thread-safe. Request-oriented hosts isolate
+ambient execution bookkeeping; they do not clone a shared collection or make concurrent mutation safe.
 
 ## Not yet implemented
 
@@ -404,9 +399,6 @@ gap — multi-threaded use is unsupported.
   `ObservableCollection<T>` into Viu's dependency graph or vice versa.
 - **No custom value-change comparer** — the change cutoff is hardwired to `EqualityComparer<T>.Default`
   across refs, computeds, generated properties, and these collections.
-- **No public object-plus-key tracking API** — Viu's port of Vue's `targetMap` (`TargetTracking`) is
-  internal, so you cannot register arbitrary external containers into the same tracking scheme. The public
-  extension point for a hand-written reactive source is the `Dependency` type's `Track()` and `Trigger()`.
 
 ## See also
 
