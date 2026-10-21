@@ -9,7 +9,7 @@
          Move SDK/runtime/hosting pins together and validate the shared frontend. -->
     <_ViuDocsGlobalJson>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)global.json'))</_ViuDocsGlobalJson>
     <ViuVersion>$([System.Text.RegularExpressions.Regex]::Replace($(_ViuDocsGlobalJson), '(?s)^.*"Assimalign\.Viu\.Sdk"\s*:\s*"([^"]+)".*$', '$1'))</ViuVersion>
-    <CohesionViuVersion>10.0.0-preview.0.pr.4.8</CohesionViuVersion>
-    <FrontendVersion>1.0.0-preview.1.ci.1</FrontendVersion>
+    <CohesionViuVersion>10.0.0-preview.0.ci.12</CohesionViuVersion>
+    <FrontendVersion>1.0.0-preview.1.ci.2</FrontendVersion>
   </PropertyGroup>
 </Project>

@@ -22,10 +22,10 @@ azure-pipelines.yml                        Build, test, pack, and Push pipeline
 
 ## Version line
 
-- Viu SDK and router: `10.0.0-preview.0.pr.379.6` ([Viu #379](https://github.com/assimalign/viu/pull/379))
-- `Assimalign.Cohesion.Viu.*`: `10.0.0-preview.0.pr.4.8` ([platforms #4](https://github.com/assimalign/viu-platforms/pull/4), CI run 8)
-- Cohesion SDK: `10.0.0-preview.0.ci.21`
-- `Assimalign.Frontend.*`: `1.0.0-preview.1.ci.1`
+- Viu SDK and router: `10.0.0-preview.0.ci.7`
+- `Assimalign.Cohesion.Viu.*`: `10.0.0-preview.0.ci.12`
+- Cohesion SDK: `10.0.0-preview.0.ci.70`
+- `Assimalign.Frontend.*`: `1.0.0-preview.1.ci.2`
 - `Assimalign.Viu.Docs`: `1.0.0-preview.2`
 
 ## Local development
@@ -45,11 +45,7 @@ Move the SDK/runtime/hosting pins together and verify shared frontend compatibil
 - `FrontendVersion` in `Directory.Build.props` selects the aaln-core-frontend build, published by
   that repository's Azure pipeline as `1.0.0-preview.1.ci.<run>`.
 
-The existing frontend `ci.1` packages remain compatible with these PR builds: solution restore/build
-and package contract tests pass, and the precompiled AppShell mounts in the in-memory host with
-browser-only theme interop stubbed. Keep the frontend pin; its older declared dependency versions
-are minimums. After both upstream PRs merge, replace the temporary PR pins with compatible merged
-CI builds before PR-package cleanup removes them.
+These pins select the merged Viu and viu-platforms CI builds and the shared frontend build migrated to them. The frontend uses the generated component aggregate, so `AddComponents()` and `AddFrontendComponents()` can be combined without duplicate catalog registration.
 
 CI pins are temporary: viu and viu-platforms keep only their newest 20 `main` builds. GitHub Packages
 requires a personal access token (classic) with `read:packages`, and the shared frontend packages
